@@ -1,242 +1,232 @@
-# GreenRoute Negotiator
+<div align="center">
 
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg?style=flat&logo=fastapi)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18.3+-61DAFB.svg?style=flat&logo=react)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
-[![Google Maps](https://img.shields.io/badge/Google_Maps-Routes_API-4285F4.svg?style=flat&logo=googlemaps)](https://developers.google.com/maps)
-[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0+-D71F00.svg?style=flat&logo=sqlalchemy)](https://www.sqlalchemy.org/)
-[![Groq](https://img.shields.io/badge/Groq-Llama3/Mixtral-F55036.svg?style=flat)](https://groq.com)
+# 🌱 GreenRoute Negotiator
+### *AI-Powered Multi-Modal Urban Mobility & Deterministic Multi-Agent Negotiation Engine*
 
-**GreenRoute Negotiator** is an intelligent, multi-modal urban mobility platform designed for Indian cities. It combines live **Google Maps routing** (Car, Two-Wheeler, Cycling, Bus, and Metro), **materially load-bearing AI specialist agents**, a **transparent deterministic utility engine**, and **grounded Indian emission baselines** to nudge commuters toward sustainable, low-carbon travel.
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI_0.115+-009688.svg?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React 18](https://img.shields.io/badge/Frontend-React_18.3+-61DAFB.svg?style=for-the-badge&logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/Type_System-TypeScript_5.5+-3178C6.svg?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Google Maps](https://img.shields.io/badge/Routing-Google_Maps_Routes-4285F4.svg?style=for-the-badge&logo=googlemaps&logoColor=white)](https://developers.google.com/maps)
+[![SQLAlchemy](https://img.shields.io/badge/ORM-SQLAlchemy_2.0-D71F00.svg?style=for-the-badge&logo=sqlalchemy&logoColor=white)](https://www.sqlalchemy.org/)
+[![Groq](https://img.shields.io/badge/LLM_Engine-Groq_Llama3-F55036.svg?style=for-the-badge)](https://groq.com)
+[![ElevenLabs](https://img.shields.io/badge/Voice_AI-ElevenLabs-000000.svg?style=for-the-badge)](https://elevenlabs.io)
 
----
-
-## Key Highlights
-
-- **Multi-Modal Routing Engine**: Real-time door-to-door routing across **Car**, **Two-Wheeler** (optimized for bike paths and narrow alleys), **Cycling**, **Bus**, and **Metro** via the Google Maps Routes and Directions API.
-- **Accurate Indian Carbon & Cost Models**: Grounded in official Indian standards (**ARAI**, **MoRTH**, **BEE CAFE Stage II**, and **ICCT India**), applying realistic on-road adjustment multipliers (1.4x for cars, 1.2x for two-wheelers) and official fuel conversion metrics (2,310 g CO₂/L).
-- **Load-Bearing Specialist Agents**: Four domain agents (**Speed**, **Cost**, **Carbon**, **Weather**) make bounded, deterministic metric adjustments (e.g., parking search time, vehicle wear, AQI exposure penalty, rain delays) *before* scoring. Deleting an agent changes the math and the recommendation.
-- **Guardrailed LLM Negotiation & Explanation**: A multi-agent negotiation panel powered by **Groq** that is mathematically prohibited from overriding the computed winner. Plain-language explanations are cross-checked to ensure no hallucinated figures reach the user.
-- **Voice Narration**: Optional text-to-speech powered by **ElevenLabs** to read out negotiation summaries and trip explanations.
-- **Mobility Cooperation**: Dynamic carpool and relay matching with fellow commuters, offering cost and carbon discounts on private car trips.
-- **Secure Authentication & Preference Learning**: Dual-identifier login (**Email or Phone Number**), PBKDF2 password hashing, and **SQLAlchemy ORM** over SQLite (WAL mode). The engine learns user priorities over time via online preference weight updates.
-- **Interactive Map Experience**: Interactive Google Maps with real-time traffic condition color-coding (Clear Green, Mild Yellow, Heavy Red), transit station markers, and Satellite/Terrain/Transit layer switching.
+<p align="center">
+  <b>Bridging the Gap Between Multi-Modal Transit and Commuter Decision-Making in Indian Metros</b><br>
+  <i>Empirical Carbon Models • Material Specialist Agents • Guardrailed LLM Arbitration • Mobility Cooperation</i>
+</p>
 
 ---
 
-## Table of Contents
+</div>
 
-- [Architecture](#architecture)
-- [How It Works](#how-it-works)
-- [Granular Indian Carbon & Cost Factors](#granular-indian-carbon--cost-factors)
-- [Project Structure](#project-structure)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [API Reference](#api-reference)
-- [Core Design Principles](#core-design-principles)
+## 📌 Executive Summary
+
+Urban transport in Indian metropolitan hubs generates over **14% of national greenhouse gas emissions** and severe air quality crises. Commuters routinely default to high-carbon single-occupancy vehicles due to cognitive friction in comparing door-to-door transit times, hidden ownership expenses, and air quality exposure.
+
+**GreenRoute Negotiator** solves this through a **decision-theoretic AI engine**:
+1. **Live Multi-Modal Routing**: Queries Google Maps for real-time **Car**, **Two-Wheeler** (narrow pathway optimization), **Cycling**, **Bus**, and **Metro** routes with transit stop discovery.
+2. **Empirical Indian Emission Baselines**: Grounded in official **ARAI**, **MoRTH**, **BEE CAFE Stage II**, and **ICCT India (2024)** lifecycle studies with realistic on-road multipliers (1.4× for cars, 1.2× for two-wheelers).
+3. **Material Specialist AI Agents**: Four autonomous agents (**Speed**, **Cost**, **Carbon**, **Weather**) propose bounded mathematical adjustments (parking search, ownership depreciation, AQI respiratory exposure, rain caution) *before* scoring.
+4. **Deterministic Utility Engine**: Mathematically calculates the winning mode using min-max normalization and personalized preference weights.
+5. **Guardrailed Multi-Agent Arbitration**: A Groq-powered multi-agent debate and explanation layer that is mathematically constrained—the LLM explains and arbitrates the outcome, but is strictly prohibited from altering or hallucinating the winning decision.
+6. **Mobility Cooperation & Impact Tracking**: Dynamic commuter carpool matching and a personal **Impact Dashboard** quantifying CO₂ avoided, money saved, and trees preserved.
 
 ---
 
-## Architecture
+## 🏛️ System Architecture
 
-```text
-React 18 + Vite Frontend (Tailwind CSS, Glassmorphic Dark UI, MapLibre & Google Maps)
-                  ↕ REST / JSON (Strict Zod runtime contract validation)
-FastAPI Backend (Domain-Driven Design, Pure Python Core, SQLAlchemy ORM)
-   │
-   ├── Routing Layer (Google Maps Routes & Directions API)
-   │      ├── Car / Two-Wheeler (motorcycle-optimized paths) / Cycling
-   │      └── Public Transit (Bus stops, Metro lines, and cached station db)
-   │
-   ├── Enrichment Engine (static_factors.py)
-   │      └── Official ARAI / BEE CAFE-II / ICCT India carbon & fuel cost derivations
-   │
-   ├── Specialist Agent Adjustments (deterministic, 1:1 bounded channel mapping)
-   │      ├── Speed Agent   → Door-to-door access/egress parking search friction
-   │      ├── Cost Agent    → Ownership uplift (maintenance, depreciation, wear)
-   │      ├── Carbon Agent  → Ambient AQI exposure penalty (caller-supplied)
-   │      └── Weather Agent → Live rain caution delays (WeatherStack API)
-   │
-   ├── Mobility Cooperation Layer (overlap.py, commuter_pool.py)
-   │      └── Dynamic commuter matching & carpool emission discounts
-   │
-   ├── Deterministic Utility Engine (min-max normalization + weighted sum)
-   │      └── Evaluates adjusted metrics; highest score mathematically wins
-   │
-   ├── Guardrailed Negotiation & Explanation Layer (Groq LLM)
-   │      └── Coordinator summarizes debate; validated against computed winner
-   │
-   ├── Voice Narration Layer (ElevenLabs API)
-   │      └── High-fidelity text-to-speech for decisions and explanations
-   │
-   └── Persistence Layer (SQLAlchemy ORM + SQLite WAL Mode)
-          └── Users, Trip History, Preference Memory, and Transit Cache
+GreenRoute is built on **Domain-Driven Design (DDD)** principles. The domain layer contains **pure Python business logic** with zero external dependencies, guaranteeing 100% reproducible and testable decision math.
+
+```mermaid
+flowchart TD
+    subgraph Client["🖥️ Frontend (React 18 + Vite + TypeScript)"]
+        UI["Trip Planner / Geolocation / Custom Preference Sliders"]
+        Map["Interactive Google Map (Traffic, Satellite, Terrain, Transit)"]
+        Workspace["Decision Workspace & Audio Narration (ElevenLabs)"]
+        Impact["User Impact Analytics & Commuter Profile"]
+    end
+
+    subgraph API["⚡ FastAPI Application Layer"]
+        Router["/api/v1 (Auth, Trips, Users, Transit, Speech)"]
+        ZodPydantic["Strict Zod & Pydantic DTO Contract Validation"]
+    end
+
+    subgraph Domain["🧠 Core Domain Engine (Framework-Free Math)"]
+        Enrichment["Empirical Indian Sourced Metrics (ARAI / ICCT)"]
+        Agents["Material Specialist Agents\n(Speed, Cost, Carbon, Weather)"]
+        UtilityEngine["Deterministic Utility Normalizer & Weighted Scorer"]
+        Coop["Mobility Cooperation & Carpool Matching Engine"]
+        Memory["Preference Memory Learning (Online Weight Updates)"]
+    end
+
+    subgraph External["🌐 External Infrastructure Adapters"]
+        GMaps["Google Maps Routes & Directions API"]
+        WeatherAPI["WeatherStack Real-Time Weather"]
+        GroqLLM["Groq LLaMA-3 (Guardrailed Arbitration & Explanations)"]
+        ElevenTTS["ElevenLabs Text-to-Speech Engine"]
+        DB["SQLAlchemy ORM + SQLite (WAL Mode)"]
+    end
+
+    Client <-->|REST / JSON| API
+    API --> Domain
+    Domain <--> External
 ```
 
 ---
 
-## How It Works
+## 🔬 Scientific & Empirical Grounding
 
-1. **Route Generation**: The user enters an origin and destination (or uses one-click geolocation). The backend queries the Google Maps API for available transit modes and routes.
-2. **Baseline Enrichment**: Distance metrics are enriched with verified Indian emission (gCO₂/km) and fuel cost (₹/km) factors.
-3. **Specialist Adjustments**: Active specialist agents propose bounded adjustments (e.g. +4 min car parking search, +15 min two-wheeler rain delay, AQI exposure scaling).
-4. **Utility Scoring**: Scores are computed via min-max normalization against the user's weighted priorities (`w_time`, `w_cost`, `w_carbon`).
-5. **AI Negotiation**: The Speed, Cost, and Carbon agents debate the trip trade-offs in Groq. The Coordinator narrates the outcome, strictly adhering to the calculated winner.
-6. **Explanation & Audio**: A personalized "why" summary is generated and can be read aloud via ElevenLabs.
-7. **Feedback & Learning**: When a commuter selects a mode, Preference Memory updates the user's weight vector online, and savings are recorded in their personal **Impact Dashboard**.
+Unlike typical trip planners that rely on arbitrary assumptions, GreenRoute's carbon and financial metrics are derived from verified empirical data:
 
----
+```
+Real-World Mileage (km/L) = [Official Petrol Emission Factor (2,310 g CO₂/L)] / [Adopted Real-World Carbon (gCO₂/km)]
+Trip Cost (₹) = [Distance (km) / Real-World Mileage (km/L)] × [Retail Petrol Price (₹102.12/L)]
+```
 
-## Granular Indian Carbon & Cost Factors
+### Official Carbon & Cost Matrix
 
-GreenRoute uses empirical data from the **Automotive Research Association of India (ARAI)**, **BEE CAFE Stage II**, and **ICCT India (2024)** transport lifecycle reports:
-
-| Mode | Base Emission | Real-World Multiplier | Adopted Emission (`gCO₂/km`) | Implied Mileage | Derived Fuel Cost (`₹/km`) | Basis / Source |
-|---|---|---|---|---|---|---|
-| **Car (ICE)** | 113.0 g/km | 1.4× (ICCT Gap) | **158.2** | 14.6 km/L | **₹6.99** | BEE CAFE-II baseline with on-road traffic/AC adjustment |
-| **Two-Wheeler** | 38.2 g/km | 1.2× (ICCT Gap) | **45.8** | 50.4 km/L | **₹2.03** | ICCT FY20-21 Indian 2W fleet average |
-| **Public Bus** | ~1000 g/km (WTW) | Allocated per pax | **25.0** / pax-km | — | **₹1.50** | ICCT HDV Lifecycle (urban diesel/CNG, 40 pax occupancy) |
-| **Metro Rail** | Grid electric | Allocated per pax | **15.0** / pax-km | — | **₹2.50** | Standard high-efficiency electrified urban rail proxy |
-| **Cycling** | 0 g/km | — | **0.0** | — | **₹0.00** | Zero tailpipe emissions |
-
-*Petrol price benchmarked at ₹102.12/L (ARAI petrol emission factor: 2,310 g CO₂/L).*
+| Mode | Regulatory Baseline | Real-World Multiplier | Adopted Emission (`gCO₂/km`) | Implied Mileage | Derived Fuel Cost (`₹/km`) | Primary Sourced Basis |
+|:---|:---:|:---:|:---:|:---:|:---:|:---|
+| **🚗 Car (ICE)** | 113.0 g/km | **1.4×** (ICCT Gap) | **158.2** | 14.6 km/L | **₹6.99** | BEE CAFE Stage II ceiling + on-road traffic & AC penalty |
+| **🛵 Two-Wheeler** | 38.2 g/km | **1.2×** (ICCT Gap) | **45.8** | 50.4 km/L | **₹2.03** | ICCT FY2020-21 Indian 2W fleet average |
+| **🚌 Public Bus** | ~1000 g/km (WTW) | Allocated per pax | **25.0** / pax-km | — | **₹1.50** | ICCT HDV Lifecycle (urban diesel/CNG, 40 pax occupancy) |
+| **🚇 Metro Rail** | Grid electric | Allocated per pax | **15.0** / pax-km | — | **₹2.50** | Electrified high-capacity urban mass transit |
+| **🚲 Cycling** | 0 g/km | — | **0.0** | — | **₹0.00** | Zero tailpipe emissions |
 
 ---
 
-## Project Structure
+## 🤖 The 4 Specialist Agents & Material Decision Layer
+
+Each specialist agent is **materially load-bearing**. They do not just generate text; they inject deterministic deltas on their specific channel:
 
 ```text
-GreenRoute_Negotiator/
-├── backend/
-│   ├── app/
-│   │   ├── main.py                     # FastAPI composition root, CORS & app lifecycle
-│   │   ├── api/
-│   │   │   ├── routers/                # Auth, Trips, Users, Speech, Transit, Health
-│   │   │   ├── dependencies.py         # Dependency injection for stores and use cases
-│   │   │   └── error_handlers.py       # Domain error to HTTP status mapping
-│   │   ├── application/use_cases/      # Clean orchestration use cases
-│   │   ├── domain/                     # Pure framework-free business logic & math
-│   │   │   ├── decision/               # Utility formula & switch policy
-│   │   │   ├── negotiation/            # Material agent adjustments & guardrails
-│   │   │   ├── cooperation/            # Carpool & commuter relay matching
-│   │   │   └── preference/             # Online preference learning logic
-│   │   ├── infrastructure/
-│   │   │   ├── database/               # SQLAlchemy models & SQLite session (WAL mode)
-│   │   │   ├── routing/google_maps/    # Google Maps Routes API client & transit routing
-│   │   │   ├── enrichment/             # Sourced static cost and carbon factors
-│   │   │   ├── llm/                    # Groq client, prompts & deterministic fallback
-│   │   │   └── speech/                 # ElevenLabs text-to-speech integration
-│   │   └── schemas/                    # Pydantic DTOs for requests and responses
-│   └── pyproject.toml                  # Python dependencies (uv / pip)
-│
-├── frontend/
-│   ├── src/
-│   │   ├── app/                        # Router, AuthProvider, ErrorBoundary, App root
-│   │   ├── components/                 # Layout (Header, Footer), Glassmorphic UI primitives
-│   │   ├── features/map/               # Google Maps view, traffic layers, style selectors
-│   │   ├── pages/
-│   │   │   ├── Auth/                   # Standalone Login and Sign Up views
-│   │   │   ├── Home/                   # Trip search form, presets, custom sliders
-│   │   │   ├── TripWorkspace/          # Comparison cards, agent debate, audio narration
-│   │   │   ├── ImpactDashboard/        # Personal carbon avoided, cost saved, trees equivalent
-│   │   │   └── Profile/                # Commuter profile & sustainability status
-│   │   ├── services/api/               # Fetch client & Zod schemas matching backend DTOs
-│   │   └── styles/                     # Tailwind CSS & global styles
-│   ├── package.json
-│   └── vite.config.ts
-├── PROGRESS.md                         # Detailed project evolution log
-└── README.md
+1. 🏎️ Speed Agent   --> Adds Door-to-Door Parking Search (+4.0 min Car, +1.5 min 2W, +0.5 min Cycle).
+2. 💰 Cost Agent    --> Adds Real Marginal Ownership Share (+60% Car parking/tolls, +35% 2W servicing).
+3. 🌿 Carbon Agent  --> Adds Ambient AQI Inhalation Exposure Penalty (scales with ventilation rate).
+4. 🌧️ Weather Agent --> Injects Rain Caution Delays (+15 min 2W, +10 min Cycle during active rainfall).
+```
+
+### The Guardrailed Arbitration Guarantee
+```python
+# domain/negotiation/interfaces.py
+def validate_transcript(transcript: str, computed_winner: str) -> None:
+    """Rejects any LLM output that attempts to override the mathematically computed winner."""
+    if declared_winner != computed_winner:
+        raise CoordinatorOverrideError(f"LLM hallucinated winner: {declared_winner} != {computed_winner}")
 ```
 
 ---
 
-## Quick Start
+## 🚀 Quick Start (Under 2 Minutes)
 
-### Prerequisites
-- **Python**: 3.11, 3.12, or 3.13
+### 1. Prerequisites
+- **Python**: 3.11+ or 3.12
 - **Node.js**: v20+ or v22+
-- **Google Maps API Key** (with Routes, Directions, and Places APIs enabled)
+- **Google Maps API Key** (Routes, Directions, Places)
 
-### 1. Backend Setup
-
+### 2. Backend Setup
 ```bash
 cd backend
 
-# Create and activate virtual environment
+# Create & activate virtual environment
 python -m venv .venv
-# On Windows:
-.\.venv\Scripts\activate
-# On Linux/macOS:
-source .venv/bin/activate
+.\.venv\Scripts\activate      # Windows
+source .venv/bin/activate     # macOS / Linux
 
 # Install dependencies
 pip install -e .
 
 # Configure environment
-cp .env.example .env
+cp .env.example .env          # Add your GOOGLE_MAPS_API_KEY and GROQ_API_KEY
 
-# Run the FastAPI dev server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Launch FastAPI
+uvicorn app.main:app --reload --port 8000
 ```
-Interactive Swagger docs will be available at: `http://localhost:8000/docs`.
+*Interactive Swagger API Docs available at: `http://localhost:8000/docs`*
 
-### 2. Frontend Setup
-
+### 3. Frontend Setup
 ```bash
 cd frontend
 
-# Install dependencies
+# Install packages
 npm install
 
 # Start Vite dev server
 npm run dev
 ```
-Open your browser at: `http://localhost:5173`.
+*Web App live at: `http://localhost:5173`*
 
 ---
 
-## Configuration
+## 🧪 Interactive Evaluation Scenarios for Judges
 
-### Backend (`backend/.env`)
+Try these real scenarios in the interactive planner:
 
-| Variable | Description |
-|---|---|
-| `GOOGLE_MAPS_API_KEY` | Google Maps API key (requires Routes, Directions, Places) |
-| `GROQ_API_KEY` | Optional. Enables live LLM negotiation and explanation generation |
-| `GROQ_MODEL_NEGOTIATION` | Groq tool-calling model (default: `openai/gpt-oss-20b`) |
-| `ELEVENLABS_API_KEY` | Optional. Enables voice narration for decisions and explanations |
-| `ELEVENLABS_VOICE_ID` | Voice ID (default: `SAz9YHcvj6GT2YYXdXww` - River) |
-| `PREFERENCE_DB_PATH` | Path to SQLite database (default: `greenroute_preferences.db`) |
-| `WEATHERSTACK_API_KEY` | Optional. Ambient weather and rainfall detection |
+| Scenario | Input Settings | Agent Behavior | Winning Decision |
+|---|---|---|---|
+| **Heavy Rain Rush Hour** | Trip across city + Weather Agent active | Weather Agent adds rain caution penalties to two-wheelers & cycling | **🚇 Metro / Bus** |
+| **Severe AQI Pollution** | Ambient AQI = 280 (Severe) | Carbon Agent severely penalizes heavy exertion in open cycling | **🚗 Carpool / Metro** |
+| **Budget Commute** | Stated Priority = "Cost" (w_cost = 0.7) | Utility engine favors public transit and high-mileage 2W | **🚌 Public Bus (₹15)** |
+| **Commuter Cooperation** | Car selected + "Willing to Carpool" | Mobility Cooperation matches nearby commuters for 50% split | **🤝 Carpool Relay** |
 
 ---
 
-## API Reference
+## 📂 Project Structure
 
-All endpoints are prefixed with `/api/v1`:
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/auth/signup` | Register a new user using Email or Phone Number |
-| `POST` | `/auth/login` | Authenticate using Email/Phone and Password |
-| `GET` | `/users/me` | Fetch authenticated user profile and stats |
-| `GET` | `/users/me/history` | Retrieve user's journey history |
-| `POST` | `/trips/baseline` | Route, enrich, and score modes for an origin/destination |
-| `POST` | `/trips/{id}/negotiation` | Run the 2-round multi-agent negotiation panel |
-| `POST` | `/trips/{id}/explanation` | Generate plain-language decision explanation |
-| `POST` | `/trips/{id}/selection` | Confirm selected mode and trigger Preference Memory update |
-| `POST` | `/trips/{id}/cooperation` | Check for commuter carpooling and relay matches |
-| `POST` | `/network/negotiate` | One-shot baseline routing + negotiation combined |
-| `GET` | `/transit/stations` | Query cached transit bus stops and metro stations |
-| `GET` | `/speech/status` | Check if ElevenLabs voice narration is active |
-| `POST` | `/speech/narrate` | Convert text to audio MP3 stream |
-| `GET` | `/health` | Server health and liveness probe |
+```text
+GreenRoute_Negotiator/
+├── backend/
+│   ├── app/
+│   │   ├── main.py                     # FastAPI composition root, CORS & lifecycle
+│   │   ├── api/
+│   │   │   ├── routers/                # Auth, Trips, Users, Speech, Transit, Health
+│   │   │   ├── dependencies.py         # Clean dependency injection container
+│   │   │   └── error_handlers.py       # Domain error -> HTTP status mapping
+│   │   ├── application/use_cases/      # Application orchestration layer
+│   │   ├── domain/                     # 100% Framework-free business logic & math
+│   │   │   ├── decision/               # Utility normalization & switch policy
+│   │   │   ├── negotiation/            # Specialist agent adjustments & guardrails
+│   │   │   ├── cooperation/            # Carpool & commuter relay matching
+│   │   │   └── preference/             # Online preference learning logic
+│   │   ├── infrastructure/
+│   │   │   ├── database/               # SQLAlchemy ORM models & session (WAL mode)
+│   │   │   ├── routing/google_maps/    # Google Maps Routes API client & transit routing
+│   │   │   ├── enrichment/             # Sourced static cost and carbon factors
+│   │   │   ├── llm/                    # Groq client, prompts & deterministic fallback
+│   │   │   └── speech/                 # ElevenLabs text-to-speech integration
+│   │   └── schemas/                    # Pydantic DTOs for requests and responses
+│   └── pyproject.toml                  # Python package specifications
+│
+├── frontend/
+│   ├── src/
+│   │   ├── app/                        # Router, AuthProvider, ErrorBoundary
+│   │   ├── components/                 # Layout (Header, Footer), Glassmorphic UI
+│   │   ├── features/map/               # Google Maps view, traffic layers, style selectors
+│   │   ├── pages/
+│   │   │   ├── Auth/                   # Standalone Login and Sign Up views
+│   │   │   ├── Home/                   # Trip search form, presets, custom sliders
+│   │   │   ├── TripWorkspace/          # Comparison cards, agent debate, audio narration
+│   │   │   ├── ImpactDashboard/        # Personal carbon avoided, cost saved, trees saved
+│   │   │   └── Profile/                # Commuter profile & sustainability badges
+│   │   ├── services/api/               # Fetch client & Zod schemas matching backend DTOs
+│   │   └── styles/                     # Tailwind CSS & glassmorphic tokens
+│   ├── package.json
+│   └── vite.config.ts
+├── PROGRESS.md                         # Detailed project evolution snapshot
+├── LICENSE                             # MIT Open-Source License
+└── README.md
+```
 
 ---
 
-## Core Design Principles
+## 🎯 UN Sustainable Development Goals (SDG) Alignment
 
-1. **Math Decides, AI Explains**: The winning route is always determined by pure Python mathematical formulas. The LLM is guardrailed to narrate and debate the result, never to override it.
-2. **Deterministic Fallbacks**: If external AI or speech services are unreachable, the platform degrades gracefully to deterministic local transcripts without failing the user's trip.
-3. **No Hallucinated Claims**: Every numeric metric in the negotiation or explanation is strictly validated against the actual route metrics before presentation.
-4. **Clean Domain Boundaries**: The `domain/` layer contains zero web framework or database dependencies, ensuring clean testability and architectural resilience.
+- **SDG 11: Sustainable Cities and Communities (Target 11.2)**: Providing access to safe, affordable, accessible, and sustainable transport systems for all.
+- **SDG 13: Climate Action (Target 13.3)**: Improving education, awareness-raising, and human capacity on climate change mitigation through real-time footprint feedback.
+
+---
+
+## 📜 License & Acknowledgments
+
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details. Built with passion for sustainable urban mobility.
