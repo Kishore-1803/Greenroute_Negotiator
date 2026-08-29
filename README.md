@@ -389,11 +389,3 @@ Being upfront about these so they don't surprise a new contributor:
 | Add a new page or route | `frontend/src/app/router.tsx`, then a folder under `frontend/src/pages/` |
 | Change the map | `frontend/src/features/map/` |
 | Add a new backend endpoint | A use case under `application/use_cases/`, wired via `api/dependencies.py`, exposed via a router in `api/routers/`, mapped to an HTTP status in `api/error_handlers.py` if it introduces a new error type |
-
----
-
-## Documentation
-
-`CLAUDE.md` (gitignored, local development context — not part of this repository's committed
-history) carries the full phase-by-phase build log and architectural decision record for anyone
-working on this project with Claude Code.
