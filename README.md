@@ -3,15 +3,13 @@
 GreenRoute is a multi-modal trip recommender for short urban trips. Give it an origin,
 destination, and what you care about (speed, cost, carbon — or a custom mix), and it:
 
-1. Routes the trip on **Car**, **Two-wheeler**, and **Cycling** using real OSRM instances.
+1. Routes the trip on **Car**, **Two-wheeler**, and **Cycling** using Google Maps Routes API (with local caching fallback).
 2. Enriches each route with sourced cost (₹/km) and carbon (gCO₂/km) factors.
 3. Scores all three modes with a transparent, weighted **utility formula**.
-4. Runs three competing AI agents (**Speed**, **Cost**, **Carbon**) through a two-round
-   negotiation, then has a **Coordinator** narrate the winner — the Coordinator can explain
-   the result but can never override it; the winner is always the deterministic math.
-5. Explains the recommendation in plain language, grounded only in real numbers.
-6. Learns from what you actually pick: your **Preference Memory** weight vector updates and
-   is used for every future trip.
+4. Discovers **Mobility Cooperation** (carpooling and multi-modal transit relays) matching your exact route, dynamically reducing the cost and carbon of the Car mode.
+5. Runs three competing AI agents (**Speed**, **Cost**, **Carbon**) through a two-round negotiation, then has a **Coordinator** narrate the winner based on the final math.
+6. Explains the recommendation in plain language, grounded only in real numbers.
+7. Learns from what you actually pick: your **Preference Memory** weight vector updates and is used for every future trip, while saving your choices to a personalized **Impact Dashboard**.
 
 A second, advanced capability builds on the same engine: once a trip is underway, GreenRoute
 can re-evaluate it after a simulated traffic surge — real OSRM route recomputation → a

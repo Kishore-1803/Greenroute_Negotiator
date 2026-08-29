@@ -17,11 +17,7 @@ def _settings_with_env(environment: str) -> Settings:
     return Settings(
         environment=environment,
         log_level=base.log_level,
-        osrm_host=base.osrm_host,
-        osrm_endpoints=base.osrm_endpoints,
-        osrm_request_timeout_s=base.osrm_request_timeout_s,
-        osrm_customize_timeout_s=base.osrm_customize_timeout_s,
-        osrm_container_ready_timeout_s=base.osrm_container_ready_timeout_s,
+        google_maps_api_key=base.google_maps_api_key,
         groq_api_key=base.groq_api_key,
         groq_model_explanation=base.groq_model_explanation,
         groq_model_negotiation=base.groq_model_negotiation,
