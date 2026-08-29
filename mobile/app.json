@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "GreenRoute",
+    "slug": "greenroute-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/leaf.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/leaf.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a2b20"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/leaf.png",
+        "backgroundColor": "#1a2b20"
+      }
+    },
+    "web": {
+      "favicon": "./assets/leaf.png"
+    }
+  }
+}
