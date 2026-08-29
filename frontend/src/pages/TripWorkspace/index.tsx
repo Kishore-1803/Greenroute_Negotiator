@@ -8,6 +8,7 @@ import { useConditionChangeMutation } from '@/features/trip/hooks/useConditionCh
 import { useExplanationMutation } from '@/features/trip/hooks/useExplanationMutation';
 import { useNegotiationMutation } from '@/features/trip/hooks/useNegotiationMutation';
 import { useSelectionMutation } from '@/features/trip/hooks/useSelectionMutation';
+import { useCooperationMutation } from '@/features/trip/hooks/useCooperationMutation';
 import type { BaselineResponse, ObjectionCategory } from '@/services/api/types';
 import { MOCK_LOCATIONS, type LocationPoint } from '@/lib/mockLocations';
 import { getOrCreateUserId } from '@/lib/userId';
@@ -19,6 +20,7 @@ const MapView = lazy(() => import('@/features/map/MapView').then((m) => ({ defau
 
 interface LocationState {
   baseline?: BaselineResponse;
+  willingToCarpool?: boolean;
 }
 
 export function TripWorkspacePage() {
@@ -28,6 +30,10 @@ export function TripWorkspacePage() {
 
   const [origin, setOrigin] = useState<LocationPoint | null>(MOCK_LOCATIONS[0]);
   const [destination, setDestination] = useState<LocationPoint | null>(MOCK_LOCATIONS[1]);
+  // Optional ambient AQI carried into every re-run of the baseline from this workspace.
+  const [aqi, setAqi] = useState('');
+  // Carried in from the Home form via nav state; the workspace doesn't re-toggle it.
+  const willingToCarpool = (location.state as LocationState | null)?.willingToCarpool ?? true;
 
   const baselineMutation = useBaselineMutation();
   const [baselineData, setBaselineData] = useState<BaselineResponse | undefined>(
@@ -41,10 +47,15 @@ export function TripWorkspacePage() {
     () => ((baselineData?.best_mode ?? baselineData?.current_mode) as TravelMode) || 'car'
   );
 
+  const aqiValue = aqi.trim() === '' ? undefined : Number(aqi);
+  const aqiForRequest =
+    aqiValue != null && Number.isFinite(aqiValue) && aqiValue >= 0 ? { aqi: aqiValue } : {};
+
   const conditionChange = useConditionChangeMutation(activeTripId);
   const explanation = useExplanationMutation(activeTripId);
   const negotiation = useNegotiationMutation(activeTripId);
   const selection = useSelectionMutation(activeTripId);
+  const cooperation = useCooperationMutation(activeTripId);
   const [pendingObjection, setPendingObjection] = useState<ObjectionCategory>();
   const userId = useMemo(() => getOrCreateUserId(), []);
 
@@ -60,8 +71,6 @@ export function TripWorkspacePage() {
             ? 'baseline_ready'
             : 'planning';
 
-
-
   const decided = phase === 'decided';
 
   // Request the initial explanation automatically as soon as there is something to explain --
@@ -72,6 +81,13 @@ export function TripWorkspacePage() {
       explanation.mutate({});
     }
   }, [phase]);
+
+  // Auto-fetch cooperation candidates when the user is looking at the car route and is open to it.
+  useEffect(() => {
+    if (phase === 'baseline_ready' && selectedMode === 'car' && willingToCarpool && cooperation.status === 'idle') {
+      cooperation.mutate({ departureHour: 8.5 });
+    }
+  }, [phase, selectedMode, willingToCarpool]);
 
   function handleFindRoute(mode: TravelMode) {
     if (!origin || !destination) return;
@@ -85,11 +101,13 @@ export function TripWorkspacePage() {
         dest_lat: destination.lat,
         current_mode: mode,
         user_id: userId,
+        willing_to_carpool: willingToCarpool,
+        ...aqiForRequest,
       },
       {
         onSuccess: (data) => {
           setBaselineData(data);
-          navigate(`/trip/${data.trip_id}`, { state: { baseline: data }, replace: true });
+          navigate(`/trip/${data.trip_id}`, { state: { baseline: data, willingToCarpool }, replace: true });
         },
       }
     );
@@ -114,19 +132,21 @@ export function TripWorkspacePage() {
           dest_lat: destination.lat,
           current_mode: newMode,
           user_id: userId,
+          willing_to_carpool: willingToCarpool,
+          ...aqiForRequest,
         },
         {
           onSuccess: (data) => {
             setBaselineData(data);
-            navigate(`/trip/${data.trip_id}`, { state: { baseline: data }, replace: true });
+            navigate(`/trip/${data.trip_id}`, { state: { baseline: data, willingToCarpool }, replace: true });
           },
         }
       );
     }
   }
 
-  function handleConfirmSelection(mode: TravelMode) {
-    selection.mutate({ selected_mode: mode });
+  function handleConfirmSelection(mode: TravelMode, cooperationUsed?: boolean) {
+    selection.mutate({ selected_mode: mode, cooperation_used: cooperationUsed });
   }
 
   function handleObjection(category: ObjectionCategory) {
@@ -181,13 +201,11 @@ export function TripWorkspacePage() {
       }));
   }, [baselineData, decided, conditionChange.data, selectedMode]);
 
-
-
   return (
     <div className="flex-1 w-full flex flex-col p-2 sm:p-3.5 gap-2.5 max-w-[1720px] mx-auto select-none">
       {/* Main 12-Column Responsive Workspace: Decision Panel (4 cols, ~33%) + Map (8 cols, ~67%) */}
       <div className="flex-1 min-h-[800px] lg:min-h-[600px] grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-3.5 items-stretch">
-        
+
         {/* Decision Panel: One Unified Decision Workspace (4 Columns / 12 on Desktop) */}
         <div className="lg:col-span-4 h-full min-h-0 flex flex-col overflow-hidden order-last lg:order-first">
           <DecisionWorkspacePanel
@@ -198,6 +216,8 @@ export function TripWorkspacePage() {
             destination={destination}
             onChangeOrigin={setOrigin}
             onChangeDestination={setDestination}
+            aqi={aqi}
+            onChangeAqi={setAqi}
             baselineData={baselineData}
             conditionData={conditionChange.data}
             phase={phase}
@@ -224,6 +244,9 @@ export function TripWorkspacePage() {
             onConfirmSelection={handleConfirmSelection}
             selectionResult={selection.data}
             selectionStatus={selection.status}
+            cooperationData={cooperation.data}
+            cooperationStatus={cooperation.status}
+            onFindCooperation={() => cooperation.mutate({ departureHour: 8.5 })}
           />
         </div>
         <main
@@ -238,7 +261,7 @@ export function TripWorkspacePage() {
               </div>
             }
           >
-            <MapView routes={mapRoutes} className="h-full w-full rounded-xl" />
+            <MapView routes={mapRoutes} cooperationData={cooperation.data} className="h-full w-full rounded-xl" />
           </Suspense>
 
           {/* Condition Loading Overlay over Map */}
@@ -262,7 +285,3 @@ export function TripWorkspacePage() {
     </div>
   );
 }
-
-
-
-

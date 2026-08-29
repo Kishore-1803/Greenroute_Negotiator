@@ -8,6 +8,11 @@ the codebase"). A single frozen dataclass, loaded once at import time via get_se
 No secrets in source control: see .env.example at the repo root for the variable names this
 expects. A real .env is loaded via python-dotenv if present, but is never read by anything
 other than this module.
+
+Routing note: Google Maps is the wired provider (google_maps_api_key). The OSRM fields below
+(osrm_host / osrm_endpoints / the three osrm_*_timeout_s) exist only so the OSRM adapter under
+infrastructure/routing/osrm/ stays constructible -- it is an unwired drop-in alternative behind
+the same RoutingProvider port, not read by api/dependencies.py.
 """
 
 from __future__ import annotations
@@ -34,6 +39,9 @@ class Settings:
     environment: str
     log_level: str
 
+    google_maps_api_key: str | None
+
+    # --- OSRM (unwired alternative provider; see module docstring) ---
     osrm_host: str
     osrm_endpoints: dict[str, OSRMEndpoint]
     osrm_request_timeout_s: float
@@ -43,6 +51,14 @@ class Settings:
     groq_api_key: str | None
     groq_model_explanation: str
     groq_model_negotiation: str
+
+    # ElevenLabs text-to-speech (optional). When elevenlabs_api_key is None the /speech/*
+    # endpoints report themselves disabled and the frontend hides the "listen" controls --
+    # the app never fails to start over a missing voice key.
+    elevenlabs_api_key: str | None
+    elevenlabs_voice_id: str
+    elevenlabs_model: str
+    elevenlabs_request_timeout_s: float
 
     default_origin: tuple[float, float]
     default_destination: tuple[float, float]
@@ -67,6 +83,7 @@ def get_settings() -> Settings:
             ).split(",")
             if origin.strip()
         ],
+        google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY") or None,
         osrm_host=os.getenv("OSRM_HOST", "http://localhost"),
         osrm_endpoints={
             "car": OSRMEndpoint("car", int(os.getenv("OSRM_PORT_CAR", "5000")), "driving", "greenroute-osrm-car"),
@@ -79,8 +96,16 @@ def get_settings() -> Settings:
         osrm_customize_timeout_s=float(os.getenv("OSRM_CUSTOMIZE_TIMEOUT_S", "10.0")),
         osrm_container_ready_timeout_s=float(os.getenv("OSRM_CONTAINER_READY_TIMEOUT_S", "15.0")),
         groq_api_key=os.getenv("GROQ_API_KEY") or None,
-        groq_model_explanation=os.getenv("GROQ_MODEL_EXPLANATION", "llama-3.3-70b-versatile"),
-        groq_model_negotiation=os.getenv("GROQ_MODEL_NEGOTIATION", "llama-3.3-70b-versatile"),
+        # groq/compound does NOT support forced tool calling (which every LLM call here uses);
+        # openai/gpt-oss-20b is a tool-calling-capable default. Override per your Groq account.
+        groq_model_explanation=os.getenv("GROQ_MODEL_EXPLANATION", "openai/gpt-oss-20b"),
+        groq_model_negotiation=os.getenv("GROQ_MODEL_NEGOTIATION", "openai/gpt-oss-20b"),
+        elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY") or None,
+        # "River" -- a premade voice usable on the free tier ("Relaxed, Neutral,
+        # Informative"). Library/cloned voices need a paid plan; override via env if you have one.
+        elevenlabs_voice_id=os.getenv("ELEVENLABS_VOICE_ID", "SAz9YHcvj6GT2YYXdXww"),
+        elevenlabs_model=os.getenv("ELEVENLABS_MODEL", "eleven_turbo_v2_5"),
+        elevenlabs_request_timeout_s=float(os.getenv("ELEVENLABS_REQUEST_TIMEOUT_S", "20.0")),
         default_origin=(
             float(os.getenv("DEFAULT_ORIGIN_LON", "76.9605")),
             float(os.getenv("DEFAULT_ORIGIN_LAT", "10.9955")),
@@ -89,5 +114,5 @@ def get_settings() -> Settings:
             float(os.getenv("DEFAULT_DEST_LON", "76.9735")),
             float(os.getenv("DEFAULT_DEST_LAT", "11.0070")),
         ),
-        preference_db_path=os.getenv("PREFERENCE_DB_PATH", "greenroute_preferences.db"),
+        preference_db_path=os.getenv("SQLITE_DB_PATH") or os.getenv("PREFERENCE_DB_PATH", "greenroute_prefs.db"),
     )

@@ -128,15 +128,15 @@ def test_baseline_without_current_mode_uses_best_mode_as_current(client):
 def test_custom_weights_override_stated_priority_and_are_normalized(client):
     # A carbon-only custom weight vector must pick the lowest-carbon mode outright regardless of
     # any stated_priority also supplied in the same request (custom_weights takes precedence).
-    # Under the fake routing fixture + real static carbon factors, two_wheeler (41.2 gCO2/km)
-    # beats both car (113.0) and cycling (130.0, non-zero food-energy lifecycle emissions --
-    # see static_factors.py) -- NOT the naive "cycling always wins on carbon" assumption.
-    body = dict(VALID_BASELINE, user_id="custom-weights-user", stated_priority="speed")
+    # Under the fake routing fixture + real static carbon factors, cycling (0 gCO2/km, see
+    # static_factors.py) is the lowest-carbon mode. willing_to_carpool is pinned off here so the
+    # Car's carpool discount doesn't muddy which mode "wins on carbon".
+    body = dict(VALID_BASELINE, user_id="custom-weights-user", stated_priority="speed", willing_to_carpool=False)
     body["custom_weights"] = {"time": 0.0, "cost": 0.0, "carbon": 10.0}  # un-normalized on purpose
     response = client.post("/api/v1/trips/baseline", json=body)
     assert response.status_code == 200
     data = response.json()
-    assert data["best_mode"] == "two_wheeler"
+    assert data["best_mode"] == "cycling"
     assert data["weights_used"] == {"time": 0.0, "cost": 0.0, "carbon": 1.0}
     # custom_weights must not be persisted into Preference Memory -- the stored/returned
     # `preference` row still reflects the cold-start "speed" preset, not the transient override.

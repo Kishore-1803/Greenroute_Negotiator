@@ -89,9 +89,6 @@ export function HomePage() {
           <div className="glass-pane w-[320px] sm:w-[330px] rounded-[26px] p-5 sm:p-5.5 flex flex-col justify-between gap-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <h3 className="text-sm sm:text-[15px] font-bold text-white tracking-wide">Why GreenRoute?</h3>
-              <span className="rounded-full bg-[#8EE074]/15 px-2 py-0.5 text-[10px] font-bold text-[#8EE074] border border-[#8EE074]/25">
-                AI + Math
-              </span>
             </div>
 
             <div className="flex flex-col gap-3.5">
@@ -154,7 +151,7 @@ export function HomePage() {
             <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-white/85 mt-1">
               <div className="flex items-center gap-1">
                 <Car className="h-3 w-3 text-white/70" />
-                <span>~2 km, 3 modes</span>
+                <span>~{FIXED_TRIP.approxDistanceKm} km, 3 modes</span>
               </div>
               <div className="flex items-center gap-1 text-[#8EE074]">
                 <Leaf className="h-3 w-3" />

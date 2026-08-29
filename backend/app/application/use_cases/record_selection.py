@@ -39,11 +39,12 @@ def _recommended_mode(trip: Trip) -> str:
 
 
 class RecordSelectionUseCase:
-    def __init__(self, preference_store: PreferenceStore, trip_store: TripStore):
+    def __init__(self, preference_store: PreferenceStore, trip_store: TripStore, impact_store=None):
         self._preference_store = preference_store
         self._trip_store = trip_store
+        self._impact_store = impact_store
 
-    def execute(self, trip_id: str, selected_mode: str) -> SelectionResult:
+    def execute(self, trip_id: str, selected_mode: str, cooperation_used: bool = False) -> SelectionResult:
         if selected_mode not in TRACKED_MODES:
             raise ValidationError(f"selected_mode must be one of {TRACKED_MODES}, got {selected_mode!r}")
 
@@ -54,6 +55,23 @@ class RecordSelectionUseCase:
         for mode in (selected_mode, recommended_mode):
             if mode not in utilities:
                 raise ValidationError(f"mode {mode!r} has no usable utility score on this trip to learn from")
+
+        if self._impact_store:
+            baseline_car = trip.baseline_metrics.get("car")
+            selected_metrics = trip.baseline_metrics.get(selected_mode)
+            if selected_metrics and baseline_car:
+                dist = selected_metrics.distance_km or 0.0
+                carbon = selected_metrics.estimated_carbon_g or 0.0
+                cost = selected_metrics.estimated_cost_inr or 0.0
+                car_carbon = baseline_car.estimated_carbon_g or 0.0
+                car_cost = baseline_car.estimated_cost_inr or 0.0
+                self._impact_store.record_trip(
+                    user_id=trip.user_id, trip_id=trip.trip_id, selected_mode=selected_mode,
+                    distance_km=dist, carbon_g=carbon, cost_inr=cost,
+                    carbon_saved_vs_car_g=max(0, car_carbon - carbon),
+                    cost_saved_vs_car_inr=max(0, car_cost - cost),
+                    cooperation_used=cooperation_used
+                )
 
         if selected_mode == recommended_mode:
             preference = self._preference_store.get_or_create(trip.user_id, stated_priority=None)

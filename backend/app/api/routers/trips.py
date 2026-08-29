@@ -13,15 +13,18 @@ from fastapi import APIRouter, Depends
 from app.api.dependencies import (
     get_evaluate_baseline_use_case,
     get_explain_decision_use_case,
+    get_find_cooperation_use_case,
     get_record_selection_use_case,
     get_run_negotiation_use_case,
     get_trigger_condition_change_use_case,
 )
 from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
 from app.application.use_cases.explain_decision import ExplainDecisionUseCase
+from app.application.use_cases.find_cooperation import FindCooperationUseCase
 from app.application.use_cases.record_selection import RecordSelectionUseCase
 from app.application.use_cases.run_negotiation import RunNegotiationUseCase
 from app.application.use_cases.trigger_condition_change import TriggerConditionChangeUseCase
+from app.schemas.cooperation import CooperationResponseDTO
 from app.schemas.common import (
     AgentArgumentDTO,
     CoordinatorNarrationDTO,
@@ -59,13 +62,17 @@ async def baseline(
     origin = (body.origin_lon, body.origin_lat)
     destination = (body.dest_lon, body.dest_lat)
     result = await use_case.execute(
-        origin, destination, body.current_mode, body.user_id, body.stated_priority, body.custom_weights
+        origin, destination, body.current_mode, body.user_id, body.stated_priority,
+        body.custom_weights, body.willing_to_carpool, body.aqi,
     )
 
     return BaselineResponse(
         trip_id=result.trip.trip_id,
         current_mode=result.trip.current_mode,
         modes=[ModeMetricsDTO.model_validate(m) for m in result.trip.baseline_metrics.values()],
+        raw_modes=[ModeMetricsDTO.model_validate(m) for m in result.trip.raw_metrics.values()],
+        adjustments=result.trip.adjustments,
+        aqi=result.trip.aqi,
         utilities={mode: UtilityScoreDTO.model_validate(u) for mode, u in result.trip.baseline_utilities.items()},
         excluded=result.excluded,
         best_mode=result.best_mode,
@@ -80,7 +87,7 @@ async def selection(
     body: SelectionRequest,
     use_case: RecordSelectionUseCase = Depends(get_record_selection_use_case),
 ) -> SelectionResponse:
-    result = use_case.execute(trip_id, body.selected_mode)
+    result = use_case.execute(trip_id, body.selected_mode, body.cooperation_used)
     return SelectionResponse(
         trip_id=trip_id,
         selected_mode=body.selected_mode,
@@ -137,6 +144,16 @@ async def negotiation(
         coordinator=CoordinatorNarrationDTO.model_validate(transcript.coordinator),
         computed_winner=result.computed_winner,
     )
+
+
+@router.post("/{trip_id}/cooperation", response_model=CooperationResponseDTO)
+async def cooperation(
+    trip_id: str,
+    departure_hour: float = 8.5,
+    use_case: FindCooperationUseCase = Depends(get_find_cooperation_use_case),
+) -> CooperationResponseDTO:
+    result = await use_case.execute(trip_id, departure_hour)
+    return CooperationResponseDTO.model_validate(result.model_dump())
 
 
 @router.post("/{trip_id}/explanation", response_model=ExplanationResponse)

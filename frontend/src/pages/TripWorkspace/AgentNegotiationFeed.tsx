@@ -1,6 +1,7 @@
 import { Bike, IndianRupee, Leaf, RefreshCw, Sparkles, Zap } from 'lucide-react';
 import { MODE_LABEL, type TravelMode } from '@/types/mode';
 import { cn } from '@/lib/cn';
+import { SpeakButton } from '@/components/ui/SpeakButton';
 import type { AgentArgumentDTO, NegotiationResponse } from '@/services/api/types';
 
 const AGENT_META: Record<
@@ -88,10 +89,13 @@ export function AgentNegotiationFeed({ negotiation, status, error, onRun }: Agen
             {negotiation.coordinator.provider === 'groq' ? 'AI Narrated' : 'Fallback'}
           </span>
         </div>
-        <p className="mt-1.5 flex items-center gap-1.5 text-sm font-extrabold text-white">
-          <Bike className="h-3.5 w-3.5 text-[#8EE074]" />
-          Winner: {MODE_LABEL[negotiation.coordinator.winner as TravelMode] ?? negotiation.coordinator.winner}
-        </p>
+        <div className="mt-1.5 flex items-center justify-between gap-2">
+          <p className="flex items-center gap-1.5 text-sm font-extrabold text-white">
+            <Bike className="h-3.5 w-3.5 text-[#8EE074]" />
+            Winner: {MODE_LABEL[negotiation.coordinator.winner as TravelMode] ?? negotiation.coordinator.winner}
+          </p>
+          <SpeakButton text={negotiation.coordinator.summary} label="Listen" />
+        </div>
         <p className="mt-1 text-xs leading-relaxed text-white/80">{negotiation.coordinator.summary}</p>
       </div>
     </div>

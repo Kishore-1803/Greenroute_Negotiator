@@ -6,6 +6,10 @@ and injects them into application use cases. This is the ONLY file that knows ev
 class exists -- routers depend on use cases, use cases depend on interfaces, nothing else
 imports across those boundaries. Singletons via functools.lru_cache (this is a single-process
 FastAPI app; no need for a heavier DI container).
+
+Routing is wired to Google Maps (get_raw_routing_provider). The OSRM adapter under
+infrastructure/routing/osrm/ is kept in the tree but intentionally NOT imported here -- it is
+a drop-in alternative behind the same RoutingProvider port, not the active provider.
 """
 
 from __future__ import annotations
@@ -13,16 +17,25 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from app.domain.common.errors import ExplanationProviderFailureError, NegotiationProviderFailureError
+from app.domain.common.errors import (
+    ExplanationProviderFailureError,
+    NegotiationProviderFailureError,
+    SpeechUnavailableError,
+)
 from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
+from app.domain.speech.entities import Narration
 
 from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
 from app.application.use_cases.explain_decision import ExplainDecisionUseCase
+from app.application.use_cases.narrate_text import NarrateTextUseCase
+from app.application.use_cases.negotiate_journey import NegotiateJourneyUseCase
 from app.application.use_cases.record_selection import RecordSelectionUseCase
 from app.application.use_cases.run_negotiation import RunNegotiationUseCase
 from app.application.use_cases.trigger_condition_change import TriggerConditionChangeUseCase
 from app.domain.negotiation.entities import NegotiationContext, NegotiationTranscript
+from app.application.services.negotiation_log_store import NegotiationLogStore
 from app.application.services.trip_store import TripStore
+from app.infrastructure.storage.sqlite_negotiation_log import SQLiteNegotiationLogStore
 from app.infrastructure.storage.sqlite_trip_store import SQLiteTripStore
 from app.infrastructure.config.settings import get_settings
 from app.infrastructure.enrichment.static_factors import StaticCostCarbonProvider
@@ -31,9 +44,10 @@ from app.infrastructure.llm.groq_client import GroqExplanationProvider
 from app.infrastructure.llm.negotiation_fallback import DeterministicNegotiationFallbackProvider
 from app.infrastructure.llm.negotiation_provider import GroqNegotiationProvider
 from app.infrastructure.preference.sqlite_store import SQLitePreferenceStore
-from app.infrastructure.routing.osrm.cached_fallback import CachedFallbackRoutingProvider
-from app.infrastructure.routing.osrm.client import OSRMRoutingProvider
-from app.infrastructure.routing.osrm.traffic import OSRMTrafficSimulator
+from app.infrastructure.routing.cached_fallback import CachedFallbackRoutingProvider
+from app.infrastructure.routing.google_maps.client import GoogleMapsRoutingProvider
+from app.infrastructure.routing.google_maps.traffic import GoogleMapsTrafficSimulator
+from app.infrastructure.speech.elevenlabs_client import ElevenLabsSpeechProvider
 
 logger = logging.getLogger(__name__)
 
@@ -54,24 +68,31 @@ class _UnconfiguredNegotiationProvider:
         raise NegotiationProviderFailureError("no negotiation provider configured (GROQ_API_KEY unset)")
 
 
+class _UnconfiguredSpeechProvider:
+    """Used when ELEVENLABS_API_KEY is absent. `available` is False so /speech/status tells
+    the frontend to hide the listen control; a direct POST to /speech/narrate still gets a
+    clean SpeechUnavailableError (-> 503) rather than a stack trace."""
+
+    available = False
+    voice_id = ""
+
+    async def synthesize(self, text: str) -> Narration:
+        raise SpeechUnavailableError("no speech provider configured (ELEVENLABS_API_KEY unset)")
+
+
 @lru_cache(maxsize=1)
-def get_raw_routing_provider() -> OSRMRoutingProvider:
-    return OSRMRoutingProvider(get_settings())
+def get_raw_routing_provider() -> GoogleMapsRoutingProvider:
+    return GoogleMapsRoutingProvider(get_settings())
 
 
 @lru_cache(maxsize=1)
 def get_routing_provider() -> CachedFallbackRoutingProvider:
-    """Wrapped with the OSRM-downtime cached-demo-route fallback (Master Plan Section 6) for
-    every caller EXCEPT the traffic simulator below, which needs the raw provider: it relies
-    on real node-sequence annotations and on route() actually reaching a live container to
-    know when a Docker restart has finished -- a cached response would make it falsely think
-    the container was ready instantly."""
     return CachedFallbackRoutingProvider(get_raw_routing_provider(), get_settings())
 
 
 @lru_cache(maxsize=1)
-def get_traffic_simulator() -> OSRMTrafficSimulator:
-    return OSRMTrafficSimulator(get_settings(), get_raw_routing_provider())
+def get_traffic_simulator() -> GoogleMapsTrafficSimulator:
+    return GoogleMapsTrafficSimulator(get_raw_routing_provider())
 
 
 @lru_cache(maxsize=1)
@@ -87,6 +108,11 @@ def get_trip_store() -> TripStore:
 @lru_cache(maxsize=1)
 def get_preference_store() -> SQLitePreferenceStore:
     return SQLitePreferenceStore(get_settings().preference_db_path)
+
+
+@lru_cache(maxsize=1)
+def get_negotiation_log_store() -> NegotiationLogStore:
+    return SQLiteNegotiationLogStore(get_settings().preference_db_path)
 
 
 @lru_cache(maxsize=1)
@@ -117,6 +143,26 @@ def get_fallback_negotiation_provider() -> DeterministicNegotiationFallbackProvi
     return DeterministicNegotiationFallbackProvider()
 
 
+@lru_cache(maxsize=1)
+def get_speech_provider():
+    settings = get_settings()
+    if not settings.elevenlabs_api_key:
+        logger.info("ELEVENLABS_API_KEY not set -- voice narration disabled (/speech/* reports it off)")
+        return _UnconfiguredSpeechProvider()
+    return ElevenLabsSpeechProvider(settings)
+
+
+@lru_cache(maxsize=1)
+def get_narrate_text_use_case() -> NarrateTextUseCase:
+    return NarrateTextUseCase(get_speech_provider())
+
+
+@lru_cache(maxsize=1)
+def get_impact_store():
+    from app.infrastructure.storage.impact_store import SQLiteImpactStore
+    return SQLiteImpactStore(get_settings().preference_db_path)
+
+
 def get_evaluate_baseline_use_case() -> EvaluateBaselineUseCase:
     return EvaluateBaselineUseCase(
         get_routing_provider(), get_enrichment_provider(), get_trip_store(), get_preference_store()
@@ -132,8 +178,25 @@ def get_explain_decision_use_case() -> ExplainDecisionUseCase:
 
 
 def get_record_selection_use_case() -> RecordSelectionUseCase:
-    return RecordSelectionUseCase(get_preference_store(), get_trip_store())
+    return RecordSelectionUseCase(get_preference_store(), get_trip_store(), get_impact_store())
 
 
 def get_run_negotiation_use_case() -> RunNegotiationUseCase:
     return RunNegotiationUseCase(get_primary_negotiation_provider(), get_fallback_negotiation_provider(), get_trip_store())
+
+
+def get_negotiate_journey_use_case() -> NegotiateJourneyUseCase:
+    return NegotiateJourneyUseCase(
+        get_evaluate_baseline_use_case(), get_run_negotiation_use_case(), get_negotiation_log_store()
+    )
+
+
+@lru_cache(maxsize=1)
+def get_traveler_negotiation_provider():
+    from app.infrastructure.llm.traveler_negotiation import GroqTravelerNegotiationProvider
+    return GroqTravelerNegotiationProvider(get_settings())
+
+
+def get_find_cooperation_use_case():
+    from app.application.use_cases.find_cooperation import FindCooperationUseCase
+    return FindCooperationUseCase(get_routing_provider(), get_trip_store(), get_traveler_negotiation_provider())

@@ -5,7 +5,7 @@ import { toAppErrorFromException, toAppErrorFromResponse } from './errors';
 // machine serving the frontend, not that browser's own localhost. Vite proxies /api in
 // development; production can set VITE_API_BASE_URL to an explicit API origin if needed.
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '');
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 60_000;
 
 interface RequestOptions<T> {
   method: 'GET' | 'POST';

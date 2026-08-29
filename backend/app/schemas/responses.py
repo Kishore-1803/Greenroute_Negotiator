@@ -24,7 +24,14 @@ class HealthResponse(BaseModel):
 class BaselineResponse(BaseModel):
     trip_id: str
     current_mode: str
+    # `modes` are the ADJUSTED metrics the utility formula actually scored (post specialist-agent
+    # adjustment); `raw_modes` is the untouched routing+enrichment output and `adjustments`
+    # itemises every delta and why it was applied, so the whole step is auditable rather than
+    # asserted. See domain/negotiation/adjustments.py.
     modes: list[ModeMetricsDTO]
+    raw_modes: list[ModeMetricsDTO] = []
+    adjustments: dict | None = None
+    aqi: float | None = None
     utilities: dict[str, UtilityScoreDTO]
     excluded: dict[str, str]
     best_mode: str | None
@@ -79,3 +86,12 @@ class ExplanationResponse(BaseModel):
     limitations: list[str]
     confidence_note: str
     provider: str
+
+
+class SpeechStatusResponse(BaseModel):
+    """GET /api/v1/speech/status -- lets the frontend decide whether to render the "listen"
+    control at all, rather than showing a button that 503s."""
+
+    enabled: bool
+    provider: str | None
+    voice_id: str | None

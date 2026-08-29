@@ -42,7 +42,12 @@ def _facts_block(context: NegotiationContext) -> dict:
 
 def agent_tool_schema(round_no: int) -> dict:
     properties = {
-        "message": {"type": "string", "maxLength": 300},
+        # 500, not 300 -- same server-side-validation trap as coordinator_tool_schema's
+        # summary bound below: Groq rejects the entire tool call with a 400 on overrun, so an
+        # over-tight ceiling here costs the real transcript rather than merely trimming it.
+        # Observed: a 317-char Round 2 rebuttal failed against 300. _SHARED_RULES still asks
+        # for 1-2 sentences; this is the hard ceiling behind that request.
+        "message": {"type": "string", "maxLength": 500},
     }
     required = ["message"]
     if round_no == 2:
@@ -113,7 +118,13 @@ def coordinator_tool_schema(valid_modes: list[str]) -> dict:
                 "type": "object",
                 "properties": {
                     "winner": {"type": "string", "enum": valid_modes},
-                    "summary": {"type": "string", "maxLength": 400},
+                    # 700, not 400: Groq validates this schema SERVER-SIDE and rejects the whole
+                    # tool call with a 400 when the model overruns, so a tight bound here is not
+                    # a soft "keep it short" hint -- it silently costs the real Groq transcript
+                    # and drops the response to the deterministic fallback. Observed: a 414-char
+                    # 3-sentence summary failed against 400. The system prompt asks for 2-3
+                    # sentences; this is the hard ceiling behind that, sized to not bind first.
+                    "summary": {"type": "string", "maxLength": 700},
                 },
                 "required": ["winner", "summary"],
             },

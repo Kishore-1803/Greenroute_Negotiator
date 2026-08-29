@@ -4,15 +4,18 @@ import { formatCarbon, formatCost, formatDistance, formatMinutes } from '@/lib/f
 import type {
   BaselineResponse,
   ConditionChangeResponse,
+  CooperationResponse,
   ExplanationResponse,
   ObjectionCategory,
   SelectionResponse,
 } from '@/services/api/types';
 import { OBJECTION_CATEGORIES } from '@/services/api/types';
 import { ModeIcon } from '@/components/ui/ModeIcon';
+import { SpeakButton } from '@/components/ui/SpeakButton';
 import { LocationAutocomplete } from '@/features/map/components/LocationAutocomplete';
 import { type LocationPoint } from '@/lib/mockLocations';
 import { cn } from '@/lib/cn';
+import { AgentAdjustmentTrail } from './AgentAdjustmentTrail';
 
 const OBJECTION_LABELS: Record<ObjectionCategory, string> = {
   why_switch: 'Why switch?',
@@ -31,6 +34,9 @@ export interface DecisionWorkspacePanelProps {
   destination: LocationPoint | null;
   onChangeOrigin: (loc: LocationPoint) => void;
   onChangeDestination: (loc: LocationPoint) => void;
+  /** Optional ambient AQI, as a raw input string ("" = not supplied). */
+  aqi: string;
+  onChangeAqi: (value: string) => void;
   baselineData?: BaselineResponse;
   conditionData?: ConditionChangeResponse;
   phase: 'planning' | 'baseline_loading' | 'baseline_ready' | 'condition_loading' | 'condition_error' | 'decided';
@@ -41,9 +47,12 @@ export interface DecisionWorkspacePanelProps {
   onSimulateSurge: () => void;
   onRetryExplanation: () => void;
   onObjection: (category: ObjectionCategory) => void;
-  onConfirmSelection: (mode: TravelMode) => void;
+  onConfirmSelection: (mode: TravelMode, cooperationUsed?: boolean) => void;
   selectionResult?: SelectionResponse;
   selectionStatus: 'idle' | 'pending' | 'error' | 'success';
+  cooperationData?: CooperationResponse;
+  cooperationStatus?: 'idle' | 'pending' | 'error' | 'success';
+  onFindCooperation?: () => void;
 }
 
 export function DecisionWorkspacePanel({
@@ -54,6 +63,8 @@ export function DecisionWorkspacePanel({
   destination,
   onChangeOrigin,
   onChangeDestination,
+  aqi,
+  onChangeAqi,
   baselineData,
   conditionData,
   phase,
@@ -67,6 +78,9 @@ export function DecisionWorkspacePanel({
   onConfirmSelection,
   selectionResult,
   selectionStatus,
+  cooperationData,
+  cooperationStatus,
+  onFindCooperation,
 }: DecisionWorkspacePanelProps) {
   const isPlanning = phase === 'planning';
   const isBaselineLoading = phase === 'baseline_loading';
@@ -166,6 +180,32 @@ export function DecisionWorkspacePanel({
             })}
           </div>
 
+          {/* Optional ambient AQI -- feeds the Carbon agent's exposure adjustment. Blank = the
+              carbon channel gets no AQI component (the backend invents nothing). */}
+          <div className="mt-1 flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs border border-white/10 focus-within:border-sky-400/30">
+            <span className="text-white/40 font-medium shrink-0">AQI</span>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              max={500}
+              value={aqi}
+              onChange={(e) => onChangeAqi(e.target.value)}
+              disabled={isBaselineLoading || isSurgeLoading}
+              placeholder="optional — air quality index"
+              className="w-full bg-transparent text-white placeholder:text-white/35 focus:outline-none disabled:opacity-50"
+            />
+            {aqi.trim() !== '' && (
+              <button
+                type="button"
+                onClick={() => onChangeAqi('')}
+                className="text-[10px] font-semibold text-white/40 hover:text-white/70 shrink-0 cursor-pointer"
+              >
+                clear
+              </button>
+            )}
+          </div>
+
           {/* Action Button */}
           {(isPlanning || isBaselineLoading) && (
             <button
@@ -262,6 +302,12 @@ export function DecisionWorkspacePanel({
         )}
       </section>
 
+      {/* 2b. Agent Adjustments -- the Speed/Cost/Carbon agents' material step: bounded, reasoned
+          adjustments to the raw route data, applied BEFORE the utility scores above are computed. */}
+      {baselineData?.adjustments && (
+        <AgentAdjustmentTrail adjustments={baselineData.adjustments} aqi={baselineData.aqi} />
+      )}
+
       {/* 3. Traffic Scenario */}
       <section className="flex flex-col gap-2.5 pt-3 border-t border-white/10 shrink-0">
         <div className="flex items-center justify-between">
@@ -324,6 +370,92 @@ export function DecisionWorkspacePanel({
           </div>
         ) : null}
       </section>
+
+      {/* Mobility Cooperation -- carpool / relay matching for the Car route */}
+      {!isPlanning && selectedMode === 'car' && (
+        <section className="flex flex-col gap-2.5 pt-3 border-t border-white/10 shrink-0">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#8EE074]">Mobility Cooperation</span>
+            <div className="flex items-center gap-2">
+              {onFindCooperation && cooperationStatus !== 'pending' && (
+                <button
+                  type="button"
+                  onClick={onFindCooperation}
+                  className="text-[9px] font-bold text-white/50 hover:text-[#8EE074] underline cursor-pointer"
+                >
+                  Re-check
+                </button>
+              )}
+              <span className="text-[9px] text-white/50">Save CO₂ &amp; Cost</span>
+            </div>
+          </div>
+
+          {cooperationStatus === 'pending' && (
+            <div className="rounded-xl bg-white/5 p-3 flex items-center justify-center text-xs text-[#8EE074] gap-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>Finding overlapping commuters…</span>
+            </div>
+          )}
+
+          {cooperationStatus === 'error' && (
+            <div className="rounded-xl bg-amber-500/10 p-3 border border-amber-500/20 text-xs text-amber-200">
+              Unable to find cooperation candidates.
+            </div>
+          )}
+
+          {cooperationStatus === 'success' && cooperationData && (
+            <div className="flex flex-col gap-2">
+              {cooperationData.candidates.length > 0 ? (
+                cooperationData.candidates.map((cand, idx) => (
+                  <div key={cand.commuter_id} className={cn('rounded-xl border border-white/20 p-3 flex flex-col gap-2', idx === 0 ? 'bg-[#4D7C3E]/20' : 'bg-white/5')}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white">
+                        {cand.cooperation_type === 'shared_ride' ? 'Shared Ride' : cand.cooperation_type === 'relay' ? 'Relay' : 'Shared First Leg'} with {cand.commuter_name}
+                      </span>
+                      <span className="text-[10px] text-[#8EE074] font-semibold">{cand.compatibility_score}% Match</span>
+                    </div>
+                    <p className="text-[11px] text-white/70 leading-relaxed">{cand.cooperation_narrative}</p>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      <div className="flex flex-col">
+                        <span className="text-[9px] uppercase text-white/40">You Save</span>
+                        <span className="text-xs font-bold text-amber-300">₹{cand.estimated_user_cost_saving_inr}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] uppercase text-white/40">Emissions Prevented</span>
+                        <span className="text-xs font-bold text-[#8EE074]">{cand.estimated_carbon_saved_g}g CO₂</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-xl bg-white/5 p-3 text-xs text-white/60">
+                  No overlapping commuter journeys found for this route.
+                </div>
+              )}
+
+              {cooperationData.negotiation && cooperationData.candidates.length > 0 && (
+                <div className="mt-2 p-3 rounded-xl bg-black/40 border border-white/10 flex flex-col gap-2 text-xs">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-white/50 border-b border-white/10 pb-1">AI Mediation</span>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-2">
+                      <span className="font-semibold text-sky-400 shrink-0">You:</span>
+                      <span className="text-white/80">{cooperationData.negotiation.user_position}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className="font-semibold text-amber-400 shrink-0">{cooperationData.candidates[0].commuter_name}:</span>
+                      <span className="text-white/80">{cooperationData.negotiation.commuter_position}</span>
+                    </div>
+                    <div className="flex gap-2 mt-1 pt-1.5 border-t border-white/10">
+                      <span className="font-bold text-[#8EE074] shrink-0">Deal:</span>
+                      <span className="text-[#8EE074]">{cooperationData.negotiation.mediator_deal}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* 4. Surge Decision -- advanced flow only: SWITCH/STAY once a condition-change has run.
           The primary-flow recommendation (best_mode) is already shown via the "Recommended"
@@ -416,7 +548,10 @@ export function DecisionWorkspacePanel({
             <button
               type="button"
               disabled={selectionStatus === 'pending'}
-              onClick={() => onConfirmSelection(selectedMode)}
+              onClick={() => {
+                const coopUsed = selectedMode === 'car' && !!cooperationData?.candidates?.length;
+                onConfirmSelection(selectedMode, coopUsed);
+              }}
               className="flex items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 py-2 px-3 text-xs font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               <ThumbsUp className="h-3.5 w-3.5 text-[#8EE074]" />
@@ -435,11 +570,16 @@ export function DecisionWorkspacePanel({
           recommendation to explain (baseline_ready = RECOMMEND, decided = SWITCH/STAY). */}
       {baselineData && (phase === 'baseline_ready' || decided) && (
         <section className="flex flex-col gap-2 pt-3 border-t border-white/10 shrink-0">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
               {decided ? 'Why This Decision?' : 'Why This Recommendation?'}
             </span>
-            <span className="text-[9px] text-white/50">AI Grounded in Backend Math</span>
+            <div className="flex items-center gap-2">
+              {explanationStatus === 'success' && explanationData && (
+                <SpeakButton text={explanationData.summary || explanationData.reason} label="Listen" />
+              )}
+              <span className="text-[9px] text-white/50">AI Grounded in Backend Math</span>
+            </div>
           </div>
 
           {explanationStatus === 'loading' && (
