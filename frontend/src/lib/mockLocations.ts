@@ -6,8 +6,6 @@ export interface LocationPoint {
 }
 
 export const MOCK_LOCATIONS: LocationPoint[] = [
-  { lat: 10.9955, lon: 76.9605, label: "Tidel Park, Coimbatore" },
-  { lat: 11.0070, lon: 76.9735, label: "PSG Tech, Coimbatore" },
-  { lat: 11.0168, lon: 76.9558, label: "Gandhipuram, Coimbatore" },
-  { lat: 11.0183, lon: 76.9725, label: "Peelamedu, Coimbatore" },
+  { id: '1', label: 'T. Nagar (Example)', lat: 13.0300, lon: 80.2300 },
+  { id: '2', label: 'Gemini Flyover (Example)', lat: 13.0450, lon: 80.2450 },
 ];

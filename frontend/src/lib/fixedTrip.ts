@@ -1,6 +1,8 @@
 export const FIXED_TRIP = {
-  originLat: 10.9955,
-  originLon: 76.9605,
-  destLat: 11.0070,
-  destLon: 76.9735,
+  originLat: 13.0300,
+  originLon: 80.2300,
+  originLabel: 'T. Nagar, Chennai',
+  destLat: 13.0450,
+  destLon: 80.2450,
+  destinationLabel: 'Gemini Flyover, Chennai',
 };

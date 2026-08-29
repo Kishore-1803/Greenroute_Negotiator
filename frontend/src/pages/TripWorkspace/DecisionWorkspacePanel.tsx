@@ -233,14 +233,14 @@ export function DecisionWorkspacePanel({
                         </span>
                       )}
                     </div>
-                    {m ? (
+                    {m && m.available ? (
                       <div className="flex items-center gap-2.5 mt-0.5 text-[10px] text-white/60">
                         <span>{formatMinutes(m.duration_min)}</span>
                         <span>{formatCost(m.estimated_cost_inr)}</span>
                         <span>{formatCarbon(m.estimated_carbon_g)}</span>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-white/40">Unavailable</span>
+                      <span className="text-[10px] text-white/40 mt-0.5">Unavailable</span>
                     )}
                   </div>
                   {utility && (

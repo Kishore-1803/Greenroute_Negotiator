@@ -34,28 +34,46 @@ from app.infrastructure.config.settings import Settings
 
 logger = logging.getLogger(__name__)
 
-_COORD_TOLERANCE_DEG = 0.0015  # ~150m at this latitude -- loose enough to survive minor
-# rounding/re-entry of "the same" demo coordinates, tight enough to never silently match an
-# unrelated trip.
+_COORD_TOLERANCE_DEG = 0.0015
 
-# Three realistic pre-recorded routes for the app's fixed demo corridor (Coimbatore --
-# settings.default_origin/default_destination), one per tracked mode, recorded from a real
-# OSRM response during development. Distances are consistent with the ~1.85km straight-line
-# separation between the two points; durations reflect typical mixed local-road speeds per
-# mode, not simple distance/speed arithmetic (matching how OSRM itself accounts for turns).
-CACHED_DEMO_ROUTES: dict[str, RouteMetrics] = {
-    "car": RouteMetrics(mode="car", distance_km=2.31, duration_min=5.8, source="cache"),
-    "two_wheeler": RouteMetrics(mode="two_wheeler", distance_km=2.28, duration_min=6.6, source="cache"),
-    "cycling": RouteMetrics(mode="cycling", distance_km=2.05, duration_min=10.9, source="cache"),
+# Route 1: T. Nagar to Gemini (80.2300, 13.0300 -> 80.2450, 13.0450)
+_ROUTE_1_ORIGIN = (80.2300, 13.0300)
+_ROUTE_1_DEST = (80.2450, 13.0450)
+_CACHED_ROUTE_1 = {
+    "car": RouteMetrics(mode="car", distance_km=3.65, duration_min=5.2, source="cache"),
+    "two_wheeler": RouteMetrics(mode="two_wheeler", distance_km=3.31, duration_min=5.8, source="cache"),
+    "cycling": RouteMetrics(mode="cycling", distance_km=2.91, duration_min=12.4, source="cache"),
 }
 
+# Route 2: Saidapet to Nungambakkam (80.2200, 13.0200 -> 80.2500, 13.0500)
+_ROUTE_2_ORIGIN = (80.2200, 13.0200)
+_ROUTE_2_DEST = (80.2500, 13.0500)
+_CACHED_ROUTE_2 = {
+    "car": RouteMetrics(mode="car", distance_km=5.89, duration_min=7.7, source="cache"),
+    "two_wheeler": RouteMetrics(mode="two_wheeler", distance_km=5.89, duration_min=8.9, source="cache"),
+    "cycling": RouteMetrics(mode="cycling", distance_km=5.22, duration_min=28.4, source="cache"),
+}
 
-def _matches_demo_trip(settings: Settings, origin: tuple[float, float], destination: tuple[float, float]) -> bool:
+# Route 3: Alwarpet to Kodambakkam (80.2400, 13.0250 -> 80.2350, 13.0400)
+_ROUTE_3_ORIGIN = (80.2400, 13.0250)
+_ROUTE_3_DEST = (80.2350, 13.0400)
+_CACHED_ROUTE_3 = {
+    "car": RouteMetrics(mode="car", distance_km=4.32, duration_min=8.0, source="cache"),
+    "two_wheeler": RouteMetrics(mode="two_wheeler", distance_km=4.32, duration_min=8.6, source="cache"),
+    "cycling": RouteMetrics(mode="cycling", distance_km=3.75, duration_min=17.0, source="cache"),
+}
+
+def _get_cached_demo_routes(origin: tuple[float, float], destination: tuple[float, float]) -> dict[str, RouteMetrics] | None:
     def close(a: tuple[float, float], b: tuple[float, float]) -> bool:
         return math.dist(a, b) <= _COORD_TOLERANCE_DEG
 
-    return close(origin, settings.default_origin) and close(destination, settings.default_destination)
-
+    if close(origin, _ROUTE_1_ORIGIN) and close(destination, _ROUTE_1_DEST):
+        return _CACHED_ROUTE_1
+    if close(origin, _ROUTE_2_ORIGIN) and close(destination, _ROUTE_2_DEST):
+        return _CACHED_ROUTE_2
+    if close(origin, _ROUTE_3_ORIGIN) and close(destination, _ROUTE_3_DEST):
+        return _CACHED_ROUTE_3
+    return None
 
 class CachedFallbackRoutingProvider:
     def __init__(self, inner: RoutingProvider, settings: Settings):
@@ -68,8 +86,9 @@ class CachedFallbackRoutingProvider:
         try:
             return await self._inner.route(mode, origin, destination, with_nodes)
         except RoutingUnavailableError:
-            cached = CACHED_DEMO_ROUTES.get(mode)
-            if cached is not None and _matches_demo_trip(self._settings, origin, destination):
+            cached_routes = _get_cached_demo_routes(origin, destination)
+            cached = cached_routes.get(mode) if cached_routes else None
+            if cached is not None:
                 logger.warning("OSRM unreachable for mode=%s on the demo trip -- serving cached fallback route", mode)
                 return cached
             raise
@@ -77,13 +96,13 @@ class CachedFallbackRoutingProvider:
     async def route_all_modes(
         self, origin: tuple[float, float], destination: tuple[float, float]
     ) -> dict[str, RouteMetrics]:
-        is_demo_trip = _matches_demo_trip(self._settings, origin, destination)
+        cached_routes = _get_cached_demo_routes(origin, destination)
         results: dict[str, RouteMetrics] = {}
         for mode in self._settings.osrm_endpoints:
             try:
                 results[mode] = await self._inner.route(mode, origin, destination)
             except RoutingUnavailableError:
-                cached = CACHED_DEMO_ROUTES.get(mode) if is_demo_trip else None
+                cached = cached_routes.get(mode) if cached_routes else None
                 if cached is not None:
                     logger.warning("OSRM unreachable for mode=%s on the demo trip -- serving cached fallback route", mode)
                     results[mode] = cached
