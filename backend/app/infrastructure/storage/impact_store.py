@@ -1,17 +1,16 @@
 """
 infrastructure/storage/impact_store.py
 
-Persistent Trip Impact repository backed by SQLite.
+Persistent Trip Impact repository backed by SQLAlchemy.
 """
 
 from __future__ import annotations
 
-import contextlib
-import sqlite3
-import threading
-from pathlib import Path
-from typing import Any, Optional
 from pydantic import BaseModel
+from sqlalchemy import case, func, or_
+from sqlalchemy.orm import sessionmaker
+
+from app.infrastructure.database.models import TripHistory
 
 
 class UserImpactStats(BaseModel):
@@ -32,90 +31,95 @@ class JourneyRecordDTO(BaseModel):
     carbon_saved_vs_car_g: float
     cost_saved_vs_car_inr: float
     cooperation_used: bool
-    created_at: str
-
-
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS trip_history (
-    trip_id TEXT PRIMARY KEY,
-    user_id TEXT,
-    selected_mode TEXT,
-    distance_km REAL,
-    carbon_g REAL,
-    cost_inr REAL,
-    carbon_saved_vs_car_g REAL,
-    cost_saved_vs_car_inr REAL,
-    cooperation_used BOOLEAN,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-CREATE INDEX IF NOT EXISTS idx_trip_history_user ON trip_history(user_id);
-"""
+    created_at: str | None = None
+    origin_name: str | None = None
+    destination_name: str | None = None
+    duration_min: float | None = None
 
 
 class SQLiteImpactStore:
-    def __init__(self, db_path: str | Path):
-        self._db_path = str(db_path)
-        self._lock = threading.Lock()
+    def __init__(self, session_factory: sessionmaker):
+        self._session_factory = session_factory
         
-        # Ensure the directory and table exist on startup
-        Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
-        with contextlib.closing(self._connect()) as conn, conn:
-            conn.execute(_SCHEMA)
-
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL;")
-        return conn
+        # Ensure the table exists on startup
+        from app.infrastructure.database.session import Base, engine
+        Base.metadata.create_all(bind=engine)
 
     def record_trip(
         self, user_id: str, trip_id: str, selected_mode: str, distance_km: float, 
         carbon_g: float, cost_inr: float, carbon_saved_vs_car_g: float, 
-        cost_saved_vs_car_inr: float, cooperation_used: bool = False
+        cost_saved_vs_car_inr: float, cooperation_used: bool = False,
+        origin_name: str | None = None, destination_name: str | None = None,
+        duration_min: float | None = None
     ) -> None:
-        with self._lock, contextlib.closing(self._connect()) as conn, conn:
-            conn.execute(
-                """INSERT INTO trip_history (
-                       trip_id, user_id, selected_mode, distance_km, 
-                       carbon_g, cost_inr, carbon_saved_vs_car_g, 
-                       cost_saved_vs_car_inr, cooperation_used
-                   )
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(trip_id) DO UPDATE SET
-                       selected_mode = excluded.selected_mode,
-                       carbon_g = excluded.carbon_g,
-                       cost_inr = excluded.cost_inr,
-                       carbon_saved_vs_car_g = excluded.carbon_saved_vs_car_g,
-                       cost_saved_vs_car_inr = excluded.cost_saved_vs_car_inr,
-                       cooperation_used = excluded.cooperation_used""",
-                (trip_id, user_id, selected_mode, distance_km, carbon_g, cost_inr, 
-                 carbon_saved_vs_car_g, cost_saved_vs_car_inr, cooperation_used),
-            )
+        with self._session_factory() as session:
+            db_hist = session.query(TripHistory).filter(TripHistory.trip_id == trip_id).first()
+            if db_hist:
+                db_hist.selected_mode = selected_mode
+                db_hist.carbon_g = carbon_g
+                db_hist.cost_inr = cost_inr
+                db_hist.carbon_saved_vs_car_g = carbon_saved_vs_car_g
+                db_hist.cost_saved_vs_car_inr = cost_saved_vs_car_inr
+                db_hist.cooperation_used = 1 if cooperation_used else 0
+                db_hist.origin_name = origin_name
+                db_hist.destination_name = destination_name
+                db_hist.duration_min = duration_min
+            else:
+                db_hist = TripHistory(
+                    trip_id=trip_id,
+                    user_id=user_id,
+                    selected_mode=selected_mode,
+                    distance_km=distance_km,
+                    carbon_g=carbon_g,
+                    cost_inr=cost_inr,
+                    carbon_saved_vs_car_g=carbon_saved_vs_car_g,
+                    cost_saved_vs_car_inr=cost_saved_vs_car_inr,
+                    cooperation_used=1 if cooperation_used else 0,
+                    origin_name=origin_name,
+                    destination_name=destination_name,
+                    duration_min=duration_min
+                )
+                session.add(db_hist)
+            session.commit()
 
     def get_user_impact(self, user_id: str) -> UserImpactStats:
-        with self._lock, contextlib.closing(self._connect()) as conn:
-            row = conn.execute(
-                """SELECT 
-                    COUNT(trip_id),
-                    SUM(CASE WHEN selected_mode != 'car' OR cooperation_used = 1 THEN 1 ELSE 0 END),
-                    SUM(carbon_saved_vs_car_g),
-                    SUM(cost_saved_vs_car_inr),
-                    SUM(CASE WHEN cooperation_used = 1 THEN 1 ELSE 0 END)
-                   FROM trip_history
-                   WHERE user_id = ?""",
-                (user_id,),
-            ).fetchone()
+        with self._session_factory() as session:
+            # We want:
+            # COUNT(trip_id)
+            # SUM(CASE WHEN selected_mode != 'car' OR cooperation_used = 1 THEN 1 ELSE 0 END)
+            # SUM(carbon_saved_vs_car_g)
+            # SUM(cost_saved_vs_car_inr)
+            # SUM(CASE WHEN cooperation_used = 1 THEN 1 ELSE 0 END)
             
-            if not row or row[0] == 0:
+            result = session.query(
+                func.count(TripHistory.trip_id),
+                func.sum(
+                    case(
+                        (or_(TripHistory.selected_mode != 'car', TripHistory.cooperation_used == 1), 1),
+                        else_=0
+                    )
+                ),
+                func.sum(TripHistory.carbon_saved_vs_car_g),
+                func.sum(TripHistory.cost_saved_vs_car_inr),
+                func.sum(
+                    case(
+                        (TripHistory.cooperation_used == 1, 1),
+                        else_=0
+                    )
+                )
+            ).filter(TripHistory.user_id == user_id).first()
+            
+            if not result or result[0] == 0:
                 return UserImpactStats(
                     total_trips=0, green_choices=0, carbon_saved_g=0.0, 
                     cost_saved_inr=0.0, vehicle_trips_prevented=0, trees_equivalent=0
                 )
                 
-            total_trips = row[0] or 0
-            green_choices = row[1] or 0
-            carbon_saved = row[2] or 0.0
-            cost_saved = row[3] or 0.0
-            coop = row[4] or 0
+            total_trips = result[0] or 0
+            green_choices = result[1] or 0
+            carbon_saved = result[2] or 0.0
+            cost_saved = result[3] or 0.0
+            coop = result[4] or 0
             
             trees_equivalent = int(carbon_saved / 21000)
             
@@ -129,29 +133,27 @@ class SQLiteImpactStore:
             )
 
     def get_user_history(self, user_id: str, limit: int = 20) -> list[JourneyRecordDTO]:
-        with self._lock, contextlib.closing(self._connect()) as conn:
-            cursor = conn.execute(
-                """SELECT trip_id, selected_mode, distance_km, carbon_g, 
-                          cost_inr, carbon_saved_vs_car_g, cost_saved_vs_car_inr, 
-                          cooperation_used, created_at
-                   FROM trip_history
-                   WHERE user_id = ?
-                   ORDER BY created_at DESC
-                   LIMIT ?""",
-                (user_id, limit),
-            )
-            rows = cursor.fetchall()
+        with self._session_factory() as session:
+            records = session.query(TripHistory)\
+                .filter(TripHistory.user_id == user_id)\
+                .order_by(TripHistory.created_at.desc())\
+                .limit(limit)\
+                .all()
+                
             return [
                 JourneyRecordDTO(
-                    trip_id=r[0],
-                    selected_mode=r[1],
-                    distance_km=r[2],
-                    carbon_g=r[3],
-                    cost_inr=r[4],
-                    carbon_saved_vs_car_g=r[5],
-                    cost_saved_vs_car_inr=r[6],
-                    cooperation_used=bool(r[7]),
-                    created_at=str(r[8]),
+                    trip_id=r.trip_id,
+                    selected_mode=r.selected_mode,
+                    distance_km=r.distance_km,
+                    carbon_g=r.carbon_g,
+                    cost_inr=r.cost_inr,
+                    carbon_saved_vs_car_g=r.carbon_saved_vs_car_g,
+                    cost_saved_vs_car_inr=r.cost_saved_vs_car_inr,
+                    cooperation_used=bool(r.cooperation_used),
+                    created_at=str(r.created_at),
+                    origin_name=r.origin_name,
+                    destination_name=r.destination_name,
+                    duration_min=r.duration_min,
                 )
-                for r in rows
+                for r in records
             ]
