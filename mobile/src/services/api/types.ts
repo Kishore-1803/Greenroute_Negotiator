@@ -32,22 +32,22 @@ export interface GeoJsonGeometry {
 
 export interface ModeMetricsDTO {
   mode: TravelMode;
-  distance_km: number;
-  duration_min: number;
-  estimated_cost_inr: number;
-  estimated_carbon_g: number;
-  route_geometry?: GeoJsonGeometry;
+  distance_km: number | null;
+  duration_min: number | null;
+  estimated_cost_inr: number | null;
+  estimated_carbon_g: number | null;
+  available: boolean;
+  routing_source: string;
+  routing_disclosure?: string | null;
+  route_geometry?: GeoJsonGeometry | null;
 }
 
 export interface UtilityScoreDTO {
   mode: TravelMode;
+  norm_time: number;
+  norm_cost: number;
+  norm_carbon: number;
   utility: number;
-  rank: number;
-  components: {
-    time_normalized: number;
-    cost_normalized: number;
-    carbon_normalized: number;
-  };
 }
 
 export interface UserPreferenceDTO {
@@ -64,18 +64,37 @@ export interface BaselineRequest {
   dest_lon: number;
   dest_lat: number;
   current_mode?: TravelMode;
-  user_id?: string;
+  user_id: string;
   stated_priority?: StatedPriority;
   custom_weights?: CustomWeights;
+  /** Ambient AQI at trip time; feeds the Carbon agent's exposure adjustment. Omit for none. */
+  aqi?: number;
+  /** Whether the user is willing to carpool/share a ride. Defaults true server-side. */
+  willing_to_carpool?: boolean;
+}
+
+export interface WeatherDTO {
+  temp_c?: number;
+  description?: string;
+  precip_mm?: number;
+  is_raining?: boolean;
+  dest_temp_c?: number;
+  dest_description?: string;
 }
 
 export interface BaselineResponse {
   trip_id: string;
   current_mode: TravelMode;
+  // ADJUSTED metrics the utility formula actually scored (post specialist-agent adjustment).
   modes: ModeMetricsDTO[];
+  // Untouched routing+enrichment output, pre-adjustment.
+  raw_modes?: ModeMetricsDTO[];
+  adjustments?: Record<string, unknown> | null;
+  weather?: WeatherDTO | null;
+  aqi?: number | null;
   utilities: Record<TravelMode, UtilityScoreDTO>;
   excluded: Record<string, string>;
-  best_mode: TravelMode;
+  best_mode: TravelMode | null;
   preference: UserPreferenceDTO;
   weights_used: {
     w_time: number;
@@ -86,6 +105,8 @@ export interface BaselineResponse {
 
 export interface SelectionRequest {
   selected_mode: TravelMode;
+  /** Whether the user chose to cooperate via a shared ride or relay. */
+  cooperation_used?: boolean;
 }
 
 export interface SelectionResponse {
@@ -99,17 +120,19 @@ export interface SelectionResponse {
 export interface DecisionDTO {
   decision: 'SWITCH' | 'STAY';
   current_mode: TravelMode;
-  recommended_mode: TravelMode;
+  recommended_mode: TravelMode | null;
   deltas?: {
-    time_delta_min: number;
-    cost_delta_inr: number;
-    carbon_delta_g: number;
-  };
+    time_saved_min: number;
+    cost_saved_inr: number;
+    carbon_saved_g: number;
+  } | null;
   gate_check?: {
-    passed: boolean;
-    utility_diff: number;
-    threshold: number;
-  };
+    utility_gap: number;
+    absolute_gate_passed: boolean;
+    time_saved_min: number;
+    cost_saved_inr: number;
+    carbon_saved_g: number;
+  } | null;
   reason?: string;
 }
 
@@ -133,13 +156,13 @@ export interface AgentArgumentDTO {
   agent: 'speed' | 'cost' | 'carbon';
   message: string;
   mode_advocated: TravelMode;
-  stance?: 'advocate' | 'concede';
+  stance?: 'concede' | 'rebut' | null;
 }
 
 export interface CoordinatorNarrationDTO {
   winner: TravelMode;
   summary: string;
-  provider: 'groq' | 'template';
+  provider: string;
 }
 
 export interface NegotiationResponse {
@@ -155,11 +178,62 @@ export interface ExplanationRequest {
   objection_text?: string;
 }
 
+// --- Mobility Cooperation (carpool / relay) + Impact Dashboard ---
+
+export interface CooperationCandidateDTO {
+  commuter_id: string;
+  commuter_name: string;
+  commuter_mode: string;
+  commuter_origin: [number, number];
+  commuter_destination: [number, number];
+  compatibility_score: number;
+  cooperation_type: string;
+  meeting_point: [number, number];
+  meeting_point_label: string;
+  split_point: [number, number] | null;
+  split_point_label: string | null;
+  relay_hub: [number, number] | null;
+  relay_hub_label: string | null;
+  relay_last_mile_mode: string | null;
+  relay_last_mile_distance_m: number | null;
+  relay_last_mile_time_min: number | null;
+  estimated_detour_min: number;
+  estimated_walk_m: number;
+  estimated_user_cost_saving_inr: number;
+  estimated_commuter_cost_saving_inr: number;
+  estimated_carbon_saved_g: number;
+  vehicle_trips_prevented: number;
+  cooperation_narrative: string;
+}
+
+export interface TravelerNegotiationDTO {
+  user_position: string;
+  commuter_position: string;
+  mediator_deal: string;
+  deal_reached: boolean;
+}
+
+export interface CooperationResponse {
+  candidates: CooperationCandidateDTO[];
+  negotiation: TravelerNegotiationDTO | null;
+}
+
+export interface UserImpactStats {
+  total_trips: number;
+  green_choices: number;
+  carbon_saved_g: number;
+  cost_saved_inr: number;
+  vehicle_trips_prevented: number;
+  trees_equivalent: number;
+}
+
 export interface ExplanationResponse {
   summary: string;
   reason: string;
-  decision: string;
+  // "RECOMMEND" = the primary flow's initial recommendation, before any SWITCH/STAY decision
+  // exists. "SWITCH"/"STAY" = the advanced condition-change flow.
+  decision: 'SWITCH' | 'STAY' | 'RECOMMEND';
   limitations: string[];
   confidence_note?: string;
-  provider: 'groq' | 'template';
+  provider: string;
 }

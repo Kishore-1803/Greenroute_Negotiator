@@ -46,6 +46,7 @@ import {
   type NegotiationResponse,
   type ObjectionCategory,
   type SelectionResponse,
+  type WeatherDTO,
 } from '../services/api/types';
 import { MOCK_LOCATIONS, type LocationPoint } from '../lib/mockLocations';
 
@@ -62,6 +63,7 @@ const AGENT_META = {
   speed: { label: 'Speed Agent', icon: Zap, color: colors.sky, bg: colors.skySoft },
   cost: { label: 'Cost Agent', icon: IndianRupee, color: colors.amber, bg: colors.amberSoft },
   carbon: { label: 'Carbon Agent', icon: Leaf, color: colors.primaryBright, bg: colors.primarySoft },
+  weather: { label: 'Weather Agent', icon: AlertTriangle, color: '#A78BFA', bg: 'rgba(167, 139, 250, 0.12)' },
 };
 
 export const TripWorkspaceScreen: React.FC = () => {
@@ -483,12 +485,12 @@ export const TripWorkspaceScreen: React.FC = () => {
 
               <Text style={styles.decisionReason}>
                 {decision.reason ||
-                  (decision.decision === 'SWITCH'
+                  (decision.decision === 'SWITCH' && decision.recommended_mode
                     ? `Switching to ${MODE_LABEL[decision.recommended_mode] || decision.recommended_mode} reduces travel time and overall emissions.`
                     : 'The current route remains optimal under the simulated traffic conditions.')}
               </Text>
 
-              {decision.decision === 'SWITCH' && afterSelected && afterRecommendedMode && (
+              {decision.decision === 'SWITCH' && decision.recommended_mode && afterSelected && afterRecommendedMode && (
                 <View style={styles.tableBox}>
                   <View style={styles.tableRowHeader}>
                     <Text style={styles.thCell}>Metric</Text>
