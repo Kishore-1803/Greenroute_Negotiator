@@ -1,4 +1,4 @@
-import { CheckCircle2, Fuel, RefreshCw, ThumbsUp } from 'lucide-react';
+import { CheckCircle2, RefreshCw, ThumbsUp } from 'lucide-react';
 import { MODE_LABEL, type TravelMode } from '@/types/mode';
 import { formatCarbon, formatCost, formatDistance, formatMinutes } from '@/lib/formatMetrics';
 import type {
@@ -34,9 +34,6 @@ export interface DecisionWorkspacePanelProps {
   destination: LocationPoint | null;
   onChangeOrigin: (loc: LocationPoint) => void;
   onChangeDestination: (loc: LocationPoint) => void;
-  /** Optional ambient AQI, as a raw input string ("" = not supplied). */
-  aqi: string;
-  onChangeAqi: (value: string) => void;
   baselineData?: BaselineResponse;
   conditionData?: ConditionChangeResponse;
   phase: 'planning' | 'baseline_loading' | 'baseline_ready' | 'condition_loading' | 'condition_error' | 'decided';
@@ -44,7 +41,7 @@ export interface DecisionWorkspacePanelProps {
   explanationStatus: 'idle' | 'loading' | 'success' | 'error';
   explanationError?: Error;
   pendingObjection?: ObjectionCategory;
-  onSimulateSurge: () => void;
+  onSimulateSurge?: () => void;
   onRetryExplanation: () => void;
   onObjection: (category: ObjectionCategory) => void;
   onConfirmSelection: (mode: TravelMode, cooperationUsed?: boolean) => void;
@@ -64,8 +61,6 @@ export function DecisionWorkspacePanel({
   destination,
   onChangeOrigin,
   onChangeDestination,
-  aqi,
-  onChangeAqi,
   baselineData,
   conditionData,
   phase,
@@ -73,7 +68,6 @@ export function DecisionWorkspacePanel({
   explanationStatus,
   explanationError,
   pendingObjection,
-  onSimulateSurge,
   onRetryExplanation,
   onObjection,
   onConfirmSelection,
@@ -91,22 +85,8 @@ export function DecisionWorkspacePanel({
 
   // Baseline metrics for selected mode
   const currentBaselineMode = baselineData?.modes.find((m) => m.mode === selectedMode) || baselineData?.modes[0];
-
-  // Surge deltas on selected mode
-  const beforeSelected = conditionData?.before.modes.find((m) => m.mode === selectedMode);
   const afterSelected = conditionData?.after.modes.find((m) => m.mode === selectedMode);
-  const surgeTimeDelta =
-    beforeSelected?.duration_min != null && afterSelected?.duration_min != null
-      ? Math.round(afterSelected.duration_min - beforeSelected.duration_min)
-      : 0;
-  const surgeCostDelta =
-    beforeSelected?.estimated_cost_inr != null && afterSelected?.estimated_cost_inr != null
-      ? Math.round(afterSelected.estimated_cost_inr - beforeSelected.estimated_cost_inr)
-      : 0;
-  const surgeCarbonDelta =
-    beforeSelected?.estimated_carbon_g != null && afterSelected?.estimated_carbon_g != null
-      ? Math.round(afterSelected.estimated_carbon_g - beforeSelected.estimated_carbon_g)
-      : 0;
+
 
 
   // After scenario metrics
@@ -182,50 +162,26 @@ export function DecisionWorkspacePanel({
             })}
           </div>
 
-          {/* Optional ambient AQI -- feeds the Carbon agent's exposure adjustment. Blank = the
-              carbon channel gets no AQI component (the backend invents nothing). */}
-          <div className="mt-1 flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs border border-white/10 focus-within:border-sky-400/30">
-            <span className="text-white/40 font-medium shrink-0">AQI</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              max={500}
-              value={aqi}
-              onChange={(e) => onChangeAqi(e.target.value)}
-              disabled={isBaselineLoading || isSurgeLoading}
-              placeholder="optional — air quality index"
-              className="w-full bg-transparent text-white placeholder:text-white/35 focus:outline-none disabled:opacity-50"
-            />
-            {aqi.trim() !== '' && (
-              <button
-                type="button"
-                onClick={() => onChangeAqi('')}
-                className="text-[10px] font-semibold text-white/40 hover:text-white/70 shrink-0 cursor-pointer"
-              >
-                clear
-              </button>
-            )}
-          </div>
+
 
           {/* Action Button */}
-          {(isPlanning || isBaselineLoading) && (
-            <button
-              type="button"
-              disabled={isBaselineLoading}
-              onClick={() => onFindRoute(selectedMode)}
-              className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-[#8EE074] hover:bg-[#7ED064] text-[#1A2F16] py-2.5 px-4 text-xs font-extrabold transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isBaselineLoading ? (
-                <>
-                  <RefreshCw className="h-3.5 w-3.5 animate-spin" />
-                  <span>Computing Route…</span>
-                </>
-              ) : (
-                <span>Find Best Route</span>
-              )}
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={isBaselineLoading || isSurgeLoading || !origin || !destination}
+            onClick={() => onFindRoute(selectedMode)}
+            className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-[#8EE074] hover:bg-[#7ED064] text-[#1A2F16] py-2.5 px-4 text-xs font-extrabold transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isBaselineLoading ? (
+              <>
+                <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                <span>Computing Route…</span>
+              </>
+            ) : isPlanning ? (
+              <span>Find Best Route</span>
+            ) : (
+              <span>Recalculate Route</span>
+            )}
+          </button>
         </div>
       </section>
 
@@ -330,68 +286,7 @@ export function DecisionWorkspacePanel({
         <AgentAdjustmentTrail adjustments={baselineData.adjustments} aqi={baselineData.aqi} />
       )}
 
-      {/* 3. Traffic Scenario */}
-      <section className="flex flex-col gap-2.5 pt-3 border-t border-white/10 shrink-0">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">Traffic Scenario</span>
-          {decided && (
-            <span className="text-[10px] font-bold uppercase text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded border border-amber-400/20">
-              Surge Active
-            </span>
-          )}
-        </div>
 
-        {!decided ? (
-          <div className="rounded-xl bg-white/5 p-3 flex flex-col gap-2.5 border border-white/10">
-            <p className="text-xs text-white/70 leading-relaxed">
-              Simulate a traffic surge on the corridor to evaluate how the route decision and travel metrics change.
-            </p>
-            <button
-              type="button"
-              disabled={isSurgeLoading || !baselineData}
-              onClick={onSimulateSurge}
-              className="flex items-center justify-center gap-2 rounded-xl bg-[#4D7C3E] hover:bg-[#5A8F48] py-2 px-3 text-xs font-semibold text-white transition-all shadow-md active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Fuel className={isSurgeLoading ? 'h-3.5 w-3.5 animate-spin' : 'h-3.5 w-3.5'} />
-              <span>{isSurgeLoading ? 'Evaluating traffic scenario…' : 'Simulate Traffic Surge'}</span>
-            </button>
-          </div>
-        ) : decision ? (
-          <div className="rounded-xl bg-amber-500/10 p-3 flex flex-col gap-2 border border-amber-500/25">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-amber-300">Corridor Traffic Impact</span>
-              <button
-                type="button"
-                disabled={isSurgeLoading}
-                onClick={onSimulateSurge}
-                className="text-[10px] font-bold text-amber-300 hover:text-amber-200 underline cursor-pointer"
-              >
-                Re-simulate
-              </button>
-            </div>
-            <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-white/60">Time Impact</span>
-                <span className="text-xs sm:text-sm font-bold text-amber-300">
-                  {surgeTimeDelta >= 0 ? `+${surgeTimeDelta}` : surgeTimeDelta} min
-                </span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-white/60">Cost Impact</span>
-                <span className="text-xs sm:text-sm font-bold text-amber-300">
-                  {surgeCostDelta >= 0 ? `+₹${surgeCostDelta}` : `₹${surgeCostDelta}`}
-                </span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-white/60">CO₂ Impact</span>
-                <span className="text-xs sm:text-sm font-bold text-amber-300">
-                  {surgeCarbonDelta >= 0 ? `+${surgeCarbonDelta}` : surgeCarbonDelta} g
-                </span>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </section>
 
       {/* Mobility Cooperation -- carpool / relay matching for the Car route */}
       {!isPlanning && selectedMode === 'car' && (

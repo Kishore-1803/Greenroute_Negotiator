@@ -30,8 +30,6 @@ export function TripWorkspacePage() {
 
   const [origin, setOrigin] = useState<LocationPoint | null>(MOCK_LOCATIONS[0]);
   const [destination, setDestination] = useState<LocationPoint | null>(MOCK_LOCATIONS[1]);
-  // Optional ambient AQI carried into every re-run of the baseline from this workspace.
-  const [aqi, setAqi] = useState('');
   // Carried in from the Home form via nav state; the workspace doesn't re-toggle it.
   const willingToCarpool = (location.state as LocationState | null)?.willingToCarpool ?? true;
 
@@ -46,10 +44,6 @@ export function TripWorkspacePage() {
   const [selectedMode, setSelectedMode] = useState<TravelMode>(
     () => ((baselineData?.best_mode ?? baselineData?.current_mode) as TravelMode) || 'car'
   );
-
-  const aqiValue = aqi.trim() === '' ? undefined : Number(aqi);
-  const aqiForRequest =
-    aqiValue != null && Number.isFinite(aqiValue) && aqiValue >= 0 ? { aqi: aqiValue } : {};
 
   const conditionChange = useConditionChangeMutation(activeTripId);
   const explanation = useExplanationMutation(activeTripId);
@@ -77,13 +71,20 @@ export function TripWorkspacePage() {
   // Master Plan primary flow: baseline_ready already has a recommendation (best_mode) worth a
   // "why" explanation, not just the advanced condition-change/SWITCH-STAY flow's `decided`.
   useEffect(() => {
+    const hasBestMode = Boolean(baselineData?.best_mode);
+    const usableCount = baselineData?.modes?.filter((m) => m.available).length ?? 0;
+
     if ((phase === 'baseline_ready' || phase === 'decided') && explanation.status === 'idle') {
-      explanation.mutate({});
+      if (hasBestMode) {
+        explanation.mutate({});
+      }
     }
     if (phase === 'baseline_ready' && negotiation.status === 'idle') {
-      negotiation.mutate();
+      if (usableCount >= 2) {
+        negotiation.mutate();
+      }
     }
-  }, [phase]);
+  }, [phase, baselineData]);
 
   // Auto-fetch cooperation candidates when the user is looking at the car route and is open to it.
   useEffect(() => {
@@ -105,7 +106,6 @@ export function TripWorkspacePage() {
         current_mode: mode,
         user_id: userId,
         willing_to_carpool: willingToCarpool,
-        ...aqiForRequest,
       },
       {
         onSuccess: (data) => {
@@ -136,7 +136,6 @@ export function TripWorkspacePage() {
           current_mode: newMode,
           user_id: userId,
           willing_to_carpool: willingToCarpool,
-          ...aqiForRequest,
         },
         {
           onSuccess: (data) => {
@@ -219,8 +218,6 @@ export function TripWorkspacePage() {
             destination={destination}
             onChangeOrigin={setOrigin}
             onChangeDestination={setDestination}
-            aqi={aqi}
-            onChangeAqi={setAqi}
             baselineData={baselineData}
             conditionData={conditionChange.data}
             phase={phase}

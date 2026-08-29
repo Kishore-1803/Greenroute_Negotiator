@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Sparkles, TriangleAlert, Wind } from 'lucide-react';
+import { ChevronDown, Sparkles, TriangleAlert } from 'lucide-react';
 import { MODE_LABEL, type TravelMode } from '@/types/mode';
 import type { AdjustmentOutcome } from '@/services/api/types';
 import { cn } from '@/lib/cn';
@@ -14,8 +14,6 @@ const AGENT_LABEL: Record<string, string> = { speed: 'Speed', cost: 'Cost', carb
 
 interface Props {
   adjustments: AdjustmentOutcome;
-  /** Each resolved row already carries `baseline_value` (the pre-adjustment number), so the
-   * raw ModeMetrics list is not needed here. */
   aqi?: number | null;
 }
 
@@ -25,7 +23,7 @@ function fmt(value: number, channel: string): string {
   return value.toFixed(1);
 }
 
-export function AgentAdjustmentTrail({ adjustments, aqi }: Props) {
+export function AgentAdjustmentTrail({ adjustments }: Props) {
   const [open, setOpen] = useState(false);
 
   const active = adjustments.agents_active;
@@ -82,12 +80,7 @@ export function AgentAdjustmentTrail({ adjustments, aqi }: Props) {
             {AGENT_LABEL[a]}
           </span>
         ))}
-        {aqi != null && (
-          <span className="flex items-center gap-1 rounded-full border border-sky-400/40 bg-sky-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-sky-200">
-            <Wind className="h-2.5 w-2.5" />
-            AQI {Math.round(aqi)}
-          </span>
-        )}
+
         {clampedCount > 0 && (
           <span className="flex items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-200">
             <TriangleAlert className="h-2.5 w-2.5" />
