@@ -53,6 +53,7 @@ export interface DecisionWorkspacePanelProps {
   cooperationData?: CooperationResponse;
   cooperationStatus?: 'idle' | 'pending' | 'error' | 'success';
   onFindCooperation?: () => void;
+  isNegotiating?: boolean;
 }
 
 export function DecisionWorkspacePanel({
@@ -81,6 +82,7 @@ export function DecisionWorkspacePanel({
   cooperationData,
   cooperationStatus,
   onFindCooperation,
+  isNegotiating,
 }: DecisionWorkspacePanelProps) {
   const isPlanning = phase === 'planning';
   const isBaselineLoading = phase === 'baseline_loading';
@@ -227,7 +229,20 @@ export function DecisionWorkspacePanel({
         </div>
       </section>
 
-      {!isPlanning && (
+      {!isPlanning && isNegotiating && (
+        <div className="flex-1 min-h-[200px] flex flex-col items-center justify-center gap-3 bg-white/5 rounded-xl border border-white/10 p-6 animate-pulse mt-2">
+          <div className="relative">
+            <RefreshCw className="h-6 w-6 text-[#8EE074] animate-spin" />
+            <div className="absolute inset-0 bg-[#8EE074] blur-xl opacity-20 rounded-full animate-pulse" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-sm font-bold text-white tracking-wide uppercase">AI Agents Negotiating</h3>
+            <p className="text-xs text-white/50 mt-1">Specialist agents are debating the optimal route based on Speed, Cost, Carbon, and Weather.</p>
+          </div>
+        </div>
+      )}
+
+      {!isPlanning && !isNegotiating && (
         <>
 
       {/* 2. Route Comparison -- Master Plan Section 6: all three modes side by side, with
@@ -237,9 +252,16 @@ export function DecisionWorkspacePanel({
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">Route Comparison</span>
           {currentBaselineMode && (
-            <span className="text-[11px] text-white/60 font-medium">
-              {formatDistance(currentBaselineMode.distance_km)}
-            </span>
+            <div className="flex items-center gap-3">
+              {baselineData?.weather && (
+                <span className="text-[11px] font-medium flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full text-white/80">
+                  {baselineData.weather.is_raining ? '🌧️' : '⛅'} {baselineData.weather.description}, {baselineData.weather.temp_c}°C
+                </span>
+              )}
+              <span className="text-[11px] text-white/60 font-medium">
+                {formatDistance(currentBaselineMode.distance_km)}
+              </span>
+            </div>
           )}
         </div>
 

@@ -40,6 +40,7 @@ class Settings:
     log_level: str
 
     google_maps_api_key: str | None
+    weatherstack_api_key: str | None
 
     # --- OSRM (unwired alternative provider; see module docstring) ---
     osrm_host: str
@@ -84,6 +85,7 @@ def get_settings() -> Settings:
             if origin.strip()
         ],
         google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY") or None,
+        weatherstack_api_key=os.getenv("WEATHERSTACK_API_KEY") or None,
         osrm_host=os.getenv("OSRM_HOST", "http://localhost"),
         osrm_endpoints={
             "car": OSRMEndpoint("car", int(os.getenv("OSRM_PORT_CAR", "5000")), "driving", "greenroute-osrm-car"),

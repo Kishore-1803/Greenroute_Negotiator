@@ -11,6 +11,7 @@ const AGENT_META: Record<
   speed: { label: 'Speed Agent', icon: Zap, color: 'text-sky-300 bg-sky-400/15 border-sky-400/30' },
   cost: { label: 'Cost Agent', icon: IndianRupee, color: 'text-amber-300 bg-amber-400/15 border-amber-400/30' },
   carbon: { label: 'Carbon Agent', icon: Leaf, color: 'text-[#8EE074] bg-[#8EE074]/15 border-[#8EE074]/30' },
+  weather: { label: 'Weather Agent', icon: Sparkles, color: 'text-indigo-300 bg-indigo-400/15 border-indigo-400/30' },
 };
 
 interface AgentNegotiationFeedProps {

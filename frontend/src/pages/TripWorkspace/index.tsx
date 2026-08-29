@@ -80,6 +80,9 @@ export function TripWorkspacePage() {
     if ((phase === 'baseline_ready' || phase === 'decided') && explanation.status === 'idle') {
       explanation.mutate({});
     }
+    if (phase === 'baseline_ready' && negotiation.status === 'idle') {
+      negotiation.mutate();
+    }
   }, [phase]);
 
   // Auto-fetch cooperation candidates when the user is looking at the car route and is open to it.
@@ -247,6 +250,7 @@ export function TripWorkspacePage() {
             cooperationData={cooperation.data}
             cooperationStatus={cooperation.status}
             onFindCooperation={() => cooperation.mutate({ departureHour: 8.5 })}
+            isNegotiating={negotiation.isPending || (phase === 'baseline_ready' && negotiation.status === 'idle')}
           />
         </div>
         <main
