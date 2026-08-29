@@ -51,7 +51,7 @@ from dataclasses import dataclass
 
 from app.domain.decision.entities import ModeMetrics
 
-AGENT_ROLES = ("speed", "cost", "carbon")
+AGENT_ROLES = ("speed", "cost", "carbon", "weather")
 
 # Which single metric each agent is allowed to touch -- the 1:1 channel mapping. An agent may
 # never write outside its own channel, which is what keeps the three contributions separable
@@ -60,6 +60,7 @@ AGENT_CHANNEL: dict[str, str] = {
     "speed": "duration_min",
     "cost": "estimated_cost_inr",
     "carbon": "estimated_carbon_g",
+    "weather": "duration_min",
 }
 
 # --- speed agent -------------------------------------------------------------------------
@@ -97,6 +98,15 @@ AQI_EXPOSURE_COEFF: dict[str, float] = {
 AQI_CLEAN_BASELINE = 50.0   # AQI at/below which no exposure penalty applies ("good" air)
 AQI_SEVERE = 250.0          # AQI at which the exposure factor reaches 1.0
 AQI_FACTOR_CAP = 1.5        # hard ceiling so an extreme AQI cannot unbound the channel
+
+# --- weather agent -----------------------------------------------------------------------
+# Time penalty applied to open modes during rain to account for slower, cautious riding and 
+# the time taken to put on/take off rain gear.
+WEATHER_DELAY_MIN: dict[str, float] = {
+    "car": 0.0,
+    "two_wheeler": 15.0,
+    "cycling": 10.0,
+}
 
 # --- resolution bounds -------------------------------------------------------------------
 # Round 2 resolves competing proposals by SUMMING the per-(mode, channel) deltas and then
@@ -252,7 +262,28 @@ def _carbon_proposals(metrics: dict[str, ModeMetrics], aqi: float | None) -> lis
     return out
 
 
-_PROPOSERS = {"speed": _speed_proposals, "cost": _cost_proposals, "carbon": _carbon_proposals}
+def _weather_proposals(metrics: dict[str, ModeMetrics], weather: dict | None) -> list[ModeAdjustment]:
+    if not weather or not weather.get("is_raining"):
+        return []
+        
+    out = []
+    for mode, m in metrics.items():
+        delay = WEATHER_DELAY_MIN.get(mode, 0.0)
+        if delay <= 0:
+            continue
+        out.append(
+            ModeAdjustment(
+                agent="weather", mode=mode, channel="duration_min", delta=delay,
+                reason=(
+                    f"It is currently raining ({weather.get('description', 'Rain')}). "
+                    f"Adding {delay:g} min to {mode} for cautious riding and rain gear."
+                ),
+            )
+        )
+    return out
+
+
+_PROPOSERS = {"speed": _speed_proposals, "cost": _cost_proposals, "carbon": _carbon_proposals, "weather": _weather_proposals}
 
 
 def _cap_for(channel: str, baseline_value: float) -> float:
@@ -274,7 +305,13 @@ def propose_adjustments(
         proposer = _PROPOSERS.get(agent)
         if proposer is None:
             continue
-        proposals.extend(_carbon_proposals(usable, aqi) if agent == "carbon" else proposer(usable))
+        if agent == "carbon":
+            proposals.extend(_carbon_proposals(usable, aqi))
+        elif agent == "weather":
+            # We will pass weather explicitly below
+            pass
+        else:
+            proposals.extend(proposer(usable))
     return proposals
 
 
@@ -350,8 +387,11 @@ def resolve_and_apply(
 def apply_agent_adjustments(
     metrics: dict[str, ModeMetrics],
     aqi: float | None = None,
+    weather: dict | None = None,
     active_agents: tuple[str, ...] = AGENT_ROLES,
 ) -> tuple[dict[str, ModeMetrics], AdjustmentOutcome]:
     """Round 1 + Round 2 in one call -- the entry point the application layer uses."""
     proposals = propose_adjustments(metrics, aqi=aqi, active_agents=active_agents)
+    if "weather" in active_agents:
+        proposals.extend(_weather_proposals({mode: m for mode, m in metrics.items() if m.available}, weather))
     return resolve_and_apply(metrics, proposals, active_agents=active_agents)

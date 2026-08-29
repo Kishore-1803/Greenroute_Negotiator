@@ -18,8 +18,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-AGENT_ROLES = ("speed", "cost", "carbon")
-_METRIC_BY_AGENT = {"speed": "duration_min", "cost": "estimated_cost_inr", "carbon": "estimated_carbon_g"}
+AGENT_ROLES = ("speed", "cost", "carbon", "weather")
+_METRIC_BY_AGENT = {"speed": "duration_min", "cost": "estimated_cost_inr", "carbon": "estimated_carbon_g", "weather": "duration_min"}
 
 
 @dataclass(frozen=True)
@@ -43,6 +43,7 @@ class NegotiationContext:
     modes: dict[str, ModeSnapshot]
     computed_winner: str  # argmax(utility) over `modes` -- the ONLY value any output may declare as the winner
     weights_used: dict[str, float]
+    weather: dict | None = None
 
     def advocate_for(self, agent: str) -> str:
         return deterministic_advocate(agent, self.modes)
@@ -53,6 +54,13 @@ class NegotiationContext:
             for v in (m.duration_min, m.estimated_cost_inr, m.estimated_carbon_g):
                 out.add(_normalize_number(v))
                 out.add(_normalize_number(round(v)))
+        if self.weather:
+            if "temp_c" in self.weather:
+                out.add(_normalize_number(self.weather["temp_c"]))
+                out.add(_normalize_number(round(self.weather["temp_c"])))
+            if "dest_temp_c" in self.weather:
+                out.add(_normalize_number(self.weather["dest_temp_c"]))
+                out.add(_normalize_number(round(self.weather["dest_temp_c"])))
         return out
 
 
