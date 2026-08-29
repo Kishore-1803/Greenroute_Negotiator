@@ -44,6 +44,5 @@ export interface JourneyRecord {
   avoidedCarbonG: number;
   avoidedText?: string;
   routeCoordinates: [number, number][]; // [lon, lat] pairs
+  ecoScore?: number;
 }
-
-// Mock data removed in favor of real DB data

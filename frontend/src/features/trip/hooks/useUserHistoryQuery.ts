@@ -16,6 +16,8 @@ const JourneyRecordDTOSchema = z.object({
   origin_name: z.string().nullable().optional(),
   destination_name: z.string().nullable().optional(),
   duration_min: z.number().nullable().optional(),
+  route_geometry: z.array(z.array(z.number())).optional().default([]),
+  eco_score: z.number().optional().default(85.0),
 });
 
 const HistoryResponseSchema = z.array(JourneyRecordDTOSchema);
@@ -30,24 +32,34 @@ export function useUserHistoryQuery() {
         schema: HistoryResponseSchema,
       });
 
+      const modeInfo = (m: string) => {
+        switch (m) {
+          case 'metro': return { name: 'Metro Rail', icon: '🚇' };
+          case 'bus': return { name: 'Public Bus', icon: '🚌' };
+          case 'two_wheeler': return { name: 'Two-Wheeler', icon: '⚡' };
+          case 'cycling': return { name: 'Bicycle', icon: '🚲' };
+          case 'car':
+          default:
+            return { name: 'Car', icon: '🚗' };
+        }
+      };
+
       return data.map(dto => ({
         id: dto.trip_id,
-        origin: dto.origin_name || 'Unknown Origin',
-        destination: dto.destination_name || 'Unknown Destination',
+        origin: dto.origin_name || 'Origin',
+        destination: dto.destination_name || 'Destination',
         distanceKm: dto.distance_km,
-        mode: {
-          name: dto.selected_mode === 'car' ? 'Car' : dto.selected_mode === 'two_wheeler' ? 'Electric Two-Wheeler' : 'Bicycle',
-          icon: dto.selected_mode === 'car' ? '🚗' : dto.selected_mode === 'two_wheeler' ? '⚡' : '🚲',
-        },
-        timestamp: new Date(dto.created_at).toLocaleString(),
-        durationMin: dto.duration_min || 0,
-        costInr: dto.cost_inr,
-        carbonG: dto.carbon_g,
-        avoidedCarbonG: dto.carbon_saved_vs_car_g,
+        mode: modeInfo(dto.selected_mode),
+        timestamp: new Date(dto.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        durationMin: dto.duration_min ? Math.round(dto.duration_min) : 0,
+        costInr: Math.round(dto.cost_inr),
+        carbonG: Math.round(dto.carbon_g),
+        avoidedCarbonG: Math.round(dto.carbon_saved_vs_car_g),
         avoidedText: `-${Math.round(dto.carbon_saved_vs_car_g)}g avoided`,
-        routeCoordinates: [], // Backend doesn't store this in history yet
+        routeCoordinates: (dto.route_geometry as [number, number][]) || [],
+        ecoScore: dto.eco_score,
       }));
     },
-    refetchInterval: 10000,
+    refetchInterval: 5000,
   });
 }

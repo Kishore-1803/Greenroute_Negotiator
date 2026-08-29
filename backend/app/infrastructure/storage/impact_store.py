@@ -35,6 +35,8 @@ class JourneyRecordDTO(BaseModel):
     origin_name: str | None = None
     destination_name: str | None = None
     duration_min: float | None = None
+    route_geometry: list[list[float]] = []
+    eco_score: float = 85.0
 
 
 class SQLiteImpactStore:
@@ -50,7 +52,9 @@ class SQLiteImpactStore:
         carbon_g: float, cost_inr: float, carbon_saved_vs_car_g: float, 
         cost_saved_vs_car_inr: float, cooperation_used: bool = False,
         origin_name: str | None = None, destination_name: str | None = None,
-        duration_min: float | None = None
+        duration_min: float | None = None,
+        route_geometry: str | None = None,
+        eco_score: float | None = 85.0
     ) -> None:
         with self._session_factory() as session:
             db_hist = session.query(TripHistory).filter(TripHistory.trip_id == trip_id).first()
@@ -64,6 +68,10 @@ class SQLiteImpactStore:
                 db_hist.origin_name = origin_name
                 db_hist.destination_name = destination_name
                 db_hist.duration_min = duration_min
+                if route_geometry:
+                    db_hist.route_geometry = route_geometry
+                if eco_score is not None:
+                    db_hist.eco_score = eco_score
             else:
                 db_hist = TripHistory(
                     trip_id=trip_id,
@@ -77,20 +85,15 @@ class SQLiteImpactStore:
                     cooperation_used=1 if cooperation_used else 0,
                     origin_name=origin_name,
                     destination_name=destination_name,
-                    duration_min=duration_min
+                    duration_min=duration_min,
+                    route_geometry=route_geometry,
+                    eco_score=eco_score if eco_score is not None else 85.0
                 )
                 session.add(db_hist)
             session.commit()
 
     def get_user_impact(self, user_id: str) -> UserImpactStats:
         with self._session_factory() as session:
-            # We want:
-            # COUNT(trip_id)
-            # SUM(CASE WHEN selected_mode != 'car' OR cooperation_used = 1 THEN 1 ELSE 0 END)
-            # SUM(carbon_saved_vs_car_g)
-            # SUM(cost_saved_vs_car_inr)
-            # SUM(CASE WHEN cooperation_used = 1 THEN 1 ELSE 0 END)
-            
             result = session.query(
                 func.count(TripHistory.trip_id),
                 func.sum(
@@ -133,6 +136,7 @@ class SQLiteImpactStore:
             )
 
     def get_user_history(self, user_id: str, limit: int = 20) -> list[JourneyRecordDTO]:
+        import json
         with self._session_factory() as session:
             records = session.query(TripHistory)\
                 .filter(TripHistory.user_id == user_id)\
@@ -140,20 +144,35 @@ class SQLiteImpactStore:
                 .limit(limit)\
                 .all()
                 
-            return [
-                JourneyRecordDTO(
-                    trip_id=r.trip_id,
-                    selected_mode=r.selected_mode,
-                    distance_km=r.distance_km,
-                    carbon_g=r.carbon_g,
-                    cost_inr=r.cost_inr,
-                    carbon_saved_vs_car_g=r.carbon_saved_vs_car_g,
-                    cost_saved_vs_car_inr=r.cost_saved_vs_car_inr,
-                    cooperation_used=bool(r.cooperation_used),
-                    created_at=str(r.created_at),
-                    origin_name=r.origin_name,
-                    destination_name=r.destination_name,
-                    duration_min=r.duration_min,
+            results = []
+            for r in records:
+                coords: list[list[float]] = []
+                if r.route_geometry:
+                    try:
+                        parsed = json.loads(r.route_geometry)
+                        if isinstance(parsed, dict) and "coordinates" in parsed:
+                            coords = parsed["coordinates"]
+                        elif isinstance(parsed, list):
+                            coords = parsed
+                    except Exception:
+                        coords = []
+
+                results.append(
+                    JourneyRecordDTO(
+                        trip_id=r.trip_id,
+                        selected_mode=r.selected_mode,
+                        distance_km=r.distance_km,
+                        carbon_g=r.carbon_g,
+                        cost_inr=r.cost_inr,
+                        carbon_saved_vs_car_g=r.carbon_saved_vs_car_g,
+                        cost_saved_vs_car_inr=r.cost_saved_vs_car_inr,
+                        cooperation_used=bool(r.cooperation_used),
+                        created_at=str(r.created_at),
+                        origin_name=r.origin_name,
+                        destination_name=r.destination_name,
+                        duration_min=r.duration_min,
+                        route_geometry=coords,
+                        eco_score=r.eco_score if r.eco_score is not None else 85.0,
+                    )
                 )
-                for r in records
-            ]
+            return results

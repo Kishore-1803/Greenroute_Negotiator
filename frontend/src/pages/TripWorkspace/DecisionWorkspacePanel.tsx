@@ -1,4 +1,5 @@
-import { CheckCircle2, RefreshCw, ThumbsUp } from 'lucide-react';
+import { CheckCircle2, RefreshCw, ThumbsUp, Sparkles, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { MODE_LABEL, TRAVEL_MODES, type TravelMode } from '@/types/mode';
 import { formatCarbon, formatCost, formatDistance, formatMinutes } from '@/lib/formatMetrics';
 import type {
@@ -425,29 +426,50 @@ export function DecisionWorkspacePanel({
       {baselineData && (phase === 'baseline_ready' || decided) && (
         <section className="flex flex-col gap-2.5 pt-3 border-t border-white/10 shrink-0">
           <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">Your Choice</span>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-3 flex flex-col gap-2">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3 flex flex-col gap-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">What will you actually do?</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-white/50">
+                {selectionStatus === 'success' ? 'Journey Recorded' : 'Ready to commute?'}
+              </span>
               {selectionStatus === 'success' && selectionResult && (
-                <span className="text-[10px] font-semibold text-[#8EE074]">
+                <span className="text-[10px] font-semibold text-[#8EE074] flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
                   {selectionResult.weights_changed ? 'Preference updated' : 'Matches recommendation'}
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              disabled={selectionStatus === 'pending'}
-              onClick={() => {
-                const coopUsed = selectedMode === 'car' && !!cooperationData?.candidates?.length;
-                onConfirmSelection(selectedMode, coopUsed);
-              }}
-              className="flex items-center justify-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 py-2 px-3 text-xs font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer"
-            >
-              <ThumbsUp className="h-3.5 w-3.5 text-[#8EE074]" />
-              {selectionStatus === 'pending'
-                ? 'Recording…'
-                : `Confirm I'm going with ${MODE_LABEL[selectedMode]}`}
-            </button>
+
+            {selectionStatus === 'success' ? (
+              <div className="flex flex-col gap-2.5 bg-[#8EE074]/10 border border-[#8EE074]/30 rounded-xl p-3">
+                <div className="flex items-center gap-2 text-xs font-bold text-white">
+                  <CheckCircle2 className="h-4 w-4 text-[#8EE074]" />
+                  <span>Trip completed & saved to your profile!</span>
+                </div>
+                <Link
+                  to="/profile"
+                  className="w-full flex items-center justify-center gap-1.5 rounded-xl bg-[#8EE074] hover:bg-[#7ED064] text-slate-900 font-extrabold py-2 px-3 text-xs shadow-md transition-all active:scale-[0.98]"
+                >
+                  <span>View in Profile & Goals</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            ) : (
+              <button
+                type="button"
+                disabled={selectionStatus === 'pending'}
+                onClick={() => {
+                  const coopUsed = selectedMode === 'car' && !!cooperationData?.candidates?.length;
+                  onConfirmSelection(selectedMode, coopUsed);
+                }}
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#8EE074]/80 to-emerald-400/80 hover:from-[#8EE074] hover:to-emerald-400 text-slate-900 font-bold py-2.5 px-3 text-xs transition-all active:scale-[0.98] disabled:opacity-50 cursor-pointer shadow-md"
+              >
+                <ThumbsUp className="h-3.5 w-3.5" />
+                {selectionStatus === 'pending'
+                  ? 'Recording Journey…'
+                  : `Confirm & Complete Trip via ${MODE_LABEL[selectedMode]}`}
+              </button>
+            )}
+
             {selectionStatus === 'success' && selectionResult && (
               <PreferenceBars preference={selectionResult.preference} />
             )}

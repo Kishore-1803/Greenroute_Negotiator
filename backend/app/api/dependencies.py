@@ -110,7 +110,7 @@ def get_trip_store() -> TripStore:
 
 @lru_cache(maxsize=1)
 def get_preference_store() -> SQLitePreferenceStore:
-    return SQLitePreferenceStore(get_settings().preference_db_path)
+    return SQLitePreferenceStore(SessionLocal)
 
 @lru_cache(maxsize=1)
 def get_negotiation_log_store() -> NegotiationLogStore:

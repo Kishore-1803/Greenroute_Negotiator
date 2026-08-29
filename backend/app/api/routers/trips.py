@@ -89,7 +89,14 @@ async def selection(
     body: SelectionRequest,
     use_case: RecordSelectionUseCase = Depends(get_record_selection_use_case),
 ) -> SelectionResponse:
-    result = use_case.execute(trip_id, body.selected_mode, body.cooperation_used)
+    result = use_case.execute(
+        trip_id=trip_id,
+        selected_mode=body.selected_mode,
+        cooperation_used=body.cooperation_used,
+        origin_name=body.origin_name,
+        destination_name=body.destination_name,
+        duration_min=body.duration_min,
+    )
     return SelectionResponse(
         trip_id=trip_id,
         selected_mode=body.selected_mode,

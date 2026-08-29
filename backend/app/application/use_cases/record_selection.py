@@ -44,7 +44,16 @@ class RecordSelectionUseCase:
         self._trip_store = trip_store
         self._impact_store = impact_store
 
-    def execute(self, trip_id: str, selected_mode: str, cooperation_used: bool = False) -> SelectionResult:
+    def execute(
+        self,
+        trip_id: str,
+        selected_mode: str,
+        cooperation_used: bool = False,
+        origin_name: str | None = None,
+        destination_name: str | None = None,
+        duration_min: float | None = None,
+    ) -> SelectionResult:
+        import json
         if selected_mode not in TRACKED_MODES:
             raise ValidationError(f"selected_mode must be one of {TRACKED_MODES}, got {selected_mode!r}")
 
@@ -65,12 +74,34 @@ class RecordSelectionUseCase:
                 cost = selected_metrics.estimated_cost_inr or 0.0
                 car_carbon = baseline_car.estimated_carbon_g or 0.0
                 car_cost = baseline_car.estimated_cost_inr or 0.0
+                dur = duration_min if duration_min is not None else selected_metrics.duration_min
+
+                # Calculate Eco Score (0-100)
+                base_eco = {
+                    "cycling": 100.0,
+                    "metro": 95.0,
+                    "bus": 90.0,
+                    "two_wheeler": 80.0,
+                    "car": 75.0 if cooperation_used else 55.0,
+                }.get(selected_mode, 70.0)
+
+                geom_str = json.dumps(selected_metrics.route_geometry) if selected_metrics.route_geometry else None
+
                 self._impact_store.record_trip(
-                    user_id=trip.user_id, trip_id=trip.trip_id, selected_mode=selected_mode,
-                    distance_km=dist, carbon_g=carbon, cost_inr=cost,
-                    carbon_saved_vs_car_g=max(0, car_carbon - carbon),
-                    cost_saved_vs_car_inr=max(0, car_cost - cost),
-                    cooperation_used=cooperation_used
+                    user_id=trip.user_id,
+                    trip_id=trip.trip_id,
+                    selected_mode=selected_mode,
+                    distance_km=dist,
+                    carbon_g=carbon,
+                    cost_inr=cost,
+                    carbon_saved_vs_car_g=max(0.0, car_carbon - carbon),
+                    cost_saved_vs_car_inr=max(0.0, car_cost - cost),
+                    cooperation_used=cooperation_used,
+                    origin_name=origin_name,
+                    destination_name=destination_name,
+                    duration_min=dur,
+                    route_geometry=geom_str,
+                    eco_score=round(base_eco, 1),
                 )
 
         if selected_mode == recommended_mode:

@@ -58,6 +58,8 @@ class TripHistory(Base):
     origin_name = Column(String, nullable=True)
     destination_name = Column(String, nullable=True)
     duration_min = Column(Float, nullable=True)
+    route_geometry = Column(Text, nullable=True)
+    eco_score = Column(Float, nullable=True, default=80.0)
     created_at = Column(TIMESTAMP, server_default=func.current_timestamp())
 
 class NegotiationLog(Base):

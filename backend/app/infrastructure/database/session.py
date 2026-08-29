@@ -79,6 +79,15 @@ def migrate_db():
                 conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_email ON users(email)"))
                 conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_phone ON users(phone)"))
                 conn.commit()
+
+            # Ensure trip_history has route_geometry and eco_score columns
+            th_cols = [c[1] for c in conn.execute(text("PRAGMA table_info(trip_history)")).fetchall()]
+            if th_cols and "route_geometry" not in th_cols:
+                conn.execute(text("ALTER TABLE trip_history ADD COLUMN route_geometry TEXT"))
+                conn.commit()
+            if th_cols and "eco_score" not in th_cols:
+                conn.execute(text("ALTER TABLE trip_history ADD COLUMN eco_score FLOAT DEFAULT 80.0"))
+                conn.commit()
     except Exception as e:
         print("Migration error (non-fatal):", e)
 

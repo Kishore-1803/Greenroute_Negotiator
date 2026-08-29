@@ -41,9 +41,15 @@ export function JourneyCard({ journey }: JourneyCardProps) {
           </button>
         </div>
 
-        {/* Map Top-Right: Distance Badge */}
-        <div className="absolute top-3 right-3 z-10">
-          <div className="flex items-center rounded-full bg-black/75 backdrop-blur-md px-3 py-1.5 text-xs font-bold text-white border border-white/25 shadow-lg">
+        {/* Map Top-Right: Distance & Eco Score Badge */}
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5">
+          {journey.ecoScore != null && (
+            <div className="flex items-center gap-1 rounded-full bg-[#8EE074] backdrop-blur-md px-2.5 py-1 text-xs font-black text-slate-900 shadow-lg border border-white/30">
+              <span className="text-[10px]">ECO</span>
+              <span>{Math.round(journey.ecoScore)}</span>
+            </div>
+          )}
+          <div className="flex items-center rounded-full bg-black/75 backdrop-blur-md px-3 py-1 text-xs font-bold text-white border border-white/25 shadow-lg">
             <span>{journey.distanceKm} km</span>
           </div>
         </div>

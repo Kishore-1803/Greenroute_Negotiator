@@ -30,6 +30,18 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
     }
   };
 
+  const greenCount = profile.stats.greenChoices || 0;
+  const sustainabilityTitle = greenCount >= 10 
+    ? 'Level 4 • Climate Champion' 
+    : greenCount >= 4 
+    ? 'Level 3 • Eco Commuter' 
+    : greenCount >= 1 
+    ? 'Level 2 • Carbon Reducer' 
+    : 'Level 1 • Green Starter';
+
+  const weeklyGoalKg = 10.0;
+  const goalProgress = Math.min(100, Math.round(((profile.stats.avoidedCo2Kg || 0) / weeklyGoalKg) * 100));
+
   return (
     <div className="dark-glass-pane w-full rounded-[26px] sm:rounded-[32px] p-5 sm:p-7 lg:p-8 shadow-2xl border border-white/20 relative overflow-hidden backdrop-blur-xl bg-black/40">
       {/* Top Half: Avatar + User Info + Badges */}
@@ -99,10 +111,10 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
               </div>
               <div className="flex flex-col">
                 <span className="text-[9px] uppercase tracking-widest text-white/60 font-bold leading-none mb-0.5">
-                  {profile.sustainabilityStatus.level}
+                  SUSTAINABILITY BADGE
                 </span>
                 <span className="text-xs sm:text-sm font-bold text-white leading-tight">
-                  {profile.sustainabilityStatus.title}
+                  {sustainabilityTitle}
                 </span>
               </div>
             </div>
@@ -190,8 +202,27 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
         </div>
       </div>
 
+      {/* Weekly Sustainability Goal Tracker */}
+      <div className="mt-5 pt-4 border-t border-white/10 flex flex-col gap-2">
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 font-bold text-white">
+            <span className="text-sm">🎯</span>
+            <span>Weekly Carbon Reduction Goal</span>
+          </div>
+          <span className="font-extrabold text-[#8EE074]">
+            {profile.stats.avoidedCo2Kg} / {weeklyGoalKg} kg ({goalProgress}%)
+          </span>
+        </div>
+        <div className="h-2.5 w-full bg-white/10 rounded-full overflow-hidden p-0.5 border border-white/10">
+          <div 
+            className="h-full bg-gradient-to-r from-emerald-500 to-[#8EE074] rounded-full transition-all duration-500 shadow-[0_0_12px_rgba(142,224,116,0.6)]"
+            style={{ width: `${goalProgress}%` }}
+          />
+        </div>
+      </div>
+
       {/* Bottom: Climate Impact Breakdown & Equivalencies */}
-      <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="mt-4 pt-3 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="flex items-center justify-center sm:justify-start gap-2.5 rounded-xl bg-white/5 border border-white/10 px-3.5 py-2">
           <TreeDeciduous className="h-4.5 w-4.5 text-emerald-400 shrink-0" />
           <div className="flex flex-col text-left">
