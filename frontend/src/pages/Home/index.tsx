@@ -52,32 +52,31 @@ export function HomePage() {
           {/* Plan Your Route Glass Card */}
           <TripPlannerForm />
 
-          {/* Capability Chips (Bottom-Left with 50px gap) -- factual system capabilities, not
-              fabricated usage statistics. Every trip actually exercises all four. */}
-          <div className="glass-pane w-full max-w-[370px] rounded-[20px] p-2.5 sm:p-3 mt-8 lg:mt-[50px]">
-            <div className="grid grid-cols-4 gap-1">
-              <div className="flex flex-col items-center text-center p-0.5">
-                <Car className="h-3.5 w-3.5 text-[#8EE074] mb-0.5" />
-                <span className="text-sm sm:text-base font-bold text-white tracking-tight leading-none">3</span>
-                <span className="text-[9px] sm:text-[10px] text-white/70 mt-0.5 leading-tight">Modes Compared</span>
+          {/* Capability Chips (Bottom-Left with 50px gap) */}
+          <div className="glass-pane w-full max-w-[380px] rounded-[22px] p-3 sm:p-3.5 mt-8 lg:mt-[50px] shadow-2xl backdrop-blur-xl border border-white/15">
+            <div className="grid grid-cols-4 gap-1 divide-x divide-white/10">
+              <div className="flex flex-col items-center justify-center text-center px-1">
+                <Car className="h-4 w-4 text-[#8EE074] mb-1" />
+                <span className="text-base sm:text-lg font-extrabold text-white tracking-tight leading-tight">5</span>
+                <span className="text-[9px] sm:text-[10px] text-white/75 font-medium mt-0.5 leading-tight">Modes Compared</span>
               </div>
 
-              <div className="flex flex-col items-center text-center p-0.5">
-                <MessageSquareText className="h-3.5 w-3.5 text-[#8EE074] mb-0.5" />
-                <span className="text-sm sm:text-base font-bold text-white tracking-tight leading-none">3</span>
-                <span className="text-[9px] sm:text-[10px] text-white/70 mt-0.5 leading-tight">Decision Agents</span>
+              <div className="flex flex-col items-center justify-center text-center px-1">
+                <MessageSquareText className="h-4 w-4 text-[#8EE074] mb-1" />
+                <span className="text-base sm:text-lg font-extrabold text-white tracking-tight leading-tight">5</span>
+                <span className="text-[9px] sm:text-[10px] text-white/75 font-medium mt-0.5 leading-tight">Decision Agents</span>
               </div>
 
-              <div className="flex flex-col items-center text-center p-0.5">
-                <Scale className="h-3.5 w-3.5 text-[#8EE074] mb-0.5" />
-                <span className="text-sm sm:text-base font-bold text-white tracking-tight leading-none">2</span>
-                <span className="text-[9px] sm:text-[10px] text-white/70 mt-0.5 leading-tight">Negotiation Rounds</span>
+              <div className="flex flex-col items-center justify-center text-center px-1">
+                <Scale className="h-4 w-4 text-[#8EE074] mb-1" />
+                <span className="text-base sm:text-lg font-extrabold text-white tracking-tight leading-tight">2</span>
+                <span className="text-[9px] sm:text-[10px] text-white/75 font-medium mt-0.5 leading-tight">Negotiation Rounds</span>
               </div>
 
-              <div className="flex flex-col items-center text-center p-0.5">
-                <Leaf className="h-3.5 w-3.5 text-[#8EE074] mb-0.5" />
-                <span className="text-sm sm:text-base font-bold text-white tracking-tight leading-none">Learns</span>
-                <span className="text-[9px] sm:text-[10px] text-white/70 mt-0.5 leading-tight">Your Preference</span>
+              <div className="flex flex-col items-center justify-center text-center px-1">
+                <Leaf className="h-4 w-4 text-[#8EE074] mb-1" />
+                <span className="text-xs sm:text-sm font-extrabold text-white tracking-tight leading-tight h-[22px] sm:h-[28px] flex items-center justify-center">Learns</span>
+                <span className="text-[9px] sm:text-[10px] text-white/75 font-medium mt-0.5 leading-tight">Your Preference</span>
               </div>
             </div>
           </div>

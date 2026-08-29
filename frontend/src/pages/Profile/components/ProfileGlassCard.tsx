@@ -1,14 +1,26 @@
 import { useState, useRef } from 'react';
-import { MapPin, Calendar, Award, User, Camera, TreeDeciduous, Leaf, Car } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { MapPin, Calendar, Award, User, Camera, TreeDeciduous, Leaf, Car, LogOut } from 'lucide-react';
 import type { UserProfile } from '../data/profileData';
+import { logoutUser } from '@/lib/auth';
 
 interface ProfileGlassCardProps {
   profile: UserProfile;
 }
 
 export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
+  const navigate = useNavigate();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleLogout = () => {
+    setIsLoggingOut(true);
+    setTimeout(() => {
+      logoutUser();
+      navigate('/');
+    }, 400);
+  };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,21 +89,35 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
           </div>
         </div>
 
-        {/* Sustainability Status & Preferred Modes */}
+        {/* Sustainability Status, Log Out & Preferred Modes */}
         <div className="flex flex-col items-start lg:items-end gap-3.5 w-full lg:w-auto">
-          {/* Status Badge */}
-          <div className="flex items-center gap-3 rounded-2xl bg-white/10 border border-white/15 px-4 py-2 shadow-sm backdrop-blur-md">
-            <div className="h-8 w-8 rounded-xl bg-[#8EE074]/20 border border-[#8EE074]/30 flex items-center justify-center text-[#8EE074]">
-              <Award className="h-4.5 w-4.5" />
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Status Badge */}
+            <div className="flex items-center gap-3 rounded-2xl bg-white/10 border border-white/15 px-4 py-2 shadow-sm backdrop-blur-md">
+              <div className="h-8 w-8 rounded-xl bg-[#8EE074]/20 border border-[#8EE074]/30 flex items-center justify-center text-[#8EE074]">
+                <Award className="h-4.5 w-4.5" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[9px] uppercase tracking-widest text-white/60 font-bold leading-none mb-0.5">
+                  {profile.sustainabilityStatus.level}
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-white leading-tight">
+                  {profile.sustainabilityStatus.title}
+                </span>
+              </div>
             </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] uppercase tracking-widest text-white/60 font-bold leading-none mb-0.5">
-                {profile.sustainabilityStatus.level}
-              </span>
-              <span className="text-xs sm:text-sm font-bold text-white leading-tight">
-                {profile.sustainabilityStatus.title}
-              </span>
-            </div>
+
+            {/* Logout Button */}
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              title="Log out and reset session"
+              className="flex items-center gap-1.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 px-3.5 py-2.5 text-xs font-bold text-red-300 hover:text-red-100 transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-md disabled:opacity-50"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>{isLoggingOut ? 'Logging out…' : 'Log Out'}</span>
+            </button>
           </div>
 
           {/* Preferred Transportation Modes */}
