@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
-import { Key, Layers, Maximize2, Minus, Plus, RefreshCw } from 'lucide-react';
+import { Key, Maximize2, Minus, Plus, RefreshCw } from 'lucide-react';
 import type { RouteLayerInput } from './route-layer';
 import type { CooperationResponse } from '@/services/api/types';
 
@@ -17,8 +17,6 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
   const markersRef = useRef<google.maps.Marker[]>([]);
   const infoWindowsRef = useRef<google.maps.InfoWindow[]>([]);
 
-  const [activeMapType, setActiveMapType] = useState<'roadmap' | 'satellite' | 'hybrid' | 'terrain'>('roadmap');
-  const [showLayerMenu, setShowLayerMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,9 +48,12 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
           center: { lat: 13.0300, lng: 80.2300 }, // Default Chennai
           zoom: 14,
           mapTypeId: google.maps.MapTypeId.ROADMAP,
-          disableDefaultUI: true, // We provide modern dark-glass UI controls
+          disableDefaultUI: true, // We provide modern dark-glass UI controls for zoom
           zoomControl: false,
-          mapTypeControl: false,
+          mapTypeControl: true, // User requested native Map/Satellite toggle
+          mapTypeControlOptions: {
+            position: google.maps.ControlPosition.TOP_LEFT,
+          },
           streetViewControl: false,
           fullscreenControl: false,
           styles: [
@@ -132,27 +133,86 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
         polylinesRef.current.push(casing);
       }
 
-      // Colored solid or dashed polyline
-      const line = new google.maps.Polyline({
-        path,
-        geodesic: true,
-        strokeColor: isGhost ? '#f59e0b' : isPrimary ? '#2563eb' : '#38bdf8',
-        strokeOpacity: isGhost ? 0.85 : isPrimary ? 1.0 : 0.75,
-        strokeWeight: isPrimary ? 6 : isGhost ? 4.5 : 4,
-        zIndex: isPrimary ? 20 : isGhost ? 5 : 15,
-        icons: isGhost
-          ? [
-              {
-                icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
-                offset: '0',
-                repeat: '15px',
-              },
-            ]
-          : undefined,
-        map,
-      });
+      if (isPrimary && route.traffic_segments && route.traffic_segments.length > 0) {
+        // Draw the full blue line first as a base to prevent gaps between segments
+        const baseLine = new google.maps.Polyline({
+          path,
+          geodesic: true,
+          strokeColor: '#2563eb', // base blue
+          strokeOpacity: 1.0,
+          strokeWeight: 6,
+          zIndex: 15,
+          map,
+        });
+        polylinesRef.current.push(baseLine);
 
-      polylinesRef.current.push(line);
+        // Render only mild/heavy traffic segments over the base line
+        route.traffic_segments.forEach((seg) => {
+          if (seg.level === 'clear') return; // let base line show
+
+          const segmentPath = path.slice(seg.start_idx, seg.end_idx + 1);
+          const color = seg.level === 'heavy' ? '#ef4444' : '#facc15';
+
+          const segmentLine = new google.maps.Polyline({
+            path: segmentPath,
+            geodesic: true,
+            strokeColor: color,
+            strokeOpacity: 1.0,
+            strokeWeight: 6,
+            zIndex: 20, // above the base line
+            map,
+          });
+          polylinesRef.current.push(segmentLine);
+        });
+      } else {
+        // Colored solid or dashed polyline (fallback or non-primary)
+        const line = new google.maps.Polyline({
+          path,
+          geodesic: true,
+          strokeColor: isGhost ? '#f59e0b' : isPrimary ? '#2563eb' : '#94a3b8', // slate-400 for secondary
+          strokeOpacity: isGhost ? 0.85 : isPrimary ? 1.0 : 0.8,
+          strokeWeight: isPrimary ? 6 : isGhost ? 4.5 : 4,
+          zIndex: isPrimary ? 15 : isGhost ? 5 : 12,
+          icons: isGhost
+            ? [
+                {
+                  icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
+                  offset: '0',
+                  repeat: '15px',
+                },
+              ]
+            : undefined,
+          map,
+        });
+        polylinesRef.current.push(line);
+      }
+
+      // Render transit stops if present
+      if (route.stops && route.stops.length > 0) {
+        route.stops.forEach(([lon, lat], idx) => {
+          const stopMarker = new google.maps.Marker({
+            position: { lat, lng: lon },
+            map,
+            title: `Stop ${idx + 1}`,
+            label: {
+              text: (idx + 1).toString(),
+              color: '#ffffff',
+              fontSize: '10px',
+              fontWeight: 'bold',
+            },
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: '#1e293b',
+              fillOpacity: 1,
+              strokeColor: '#ffffff',
+              strokeWeight: 2,
+            },
+            zIndex: 60,
+          });
+          markersRef.current.push(stopMarker);
+        });
+      }
     });
 
     // 3. Origin & Destination Markers on Primary Route
@@ -200,12 +260,24 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
       // Midpoint ETA Callout
       const midIdx = Math.floor(coords.length * 0.45);
       const [mLon, mLat] = coords[midIdx];
+      const distStr = primaryRoute.distance_km != null ? `${primaryRoute.distance_km.toFixed(1)} km` : '';
+      const durStr = primaryRoute.duration_min != null ? `${Math.round(primaryRoute.duration_min)} min` : '';
+      const costStr = primaryRoute.estimated_cost_inr != null ? `₹${Math.round(primaryRoute.estimated_cost_inr)}` : '';
+      const co2Str = primaryRoute.estimated_carbon_g != null ? `${Math.round(primaryRoute.estimated_carbon_g)}g CO₂` : '';
+      
+      const statsHtml = [distStr, durStr, costStr, co2Str].filter(Boolean).join(' • ');
+
       const etaWindow = new google.maps.InfoWindow({
         position: { lat: mLat, lng: mLon },
         content: `
-          <div style="font-family: inherit; font-size: 11px; font-weight: 700; color: #1e293b; padding: 2px 4px;">
-            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2563eb; margin-right:4px;"></span>
-            ${primaryRoute.mode.toUpperCase()} (Selected)
+          <div style="font-family: inherit; padding: 4px 6px; min-width: 140px;">
+            <div style="font-size: 11px; font-weight: 700; color: #1e293b; margin-bottom: 4px; display: flex; align-items: center;">
+              <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2563eb; margin-right:6px;"></span>
+              ${primaryRoute.mode.toUpperCase()} (Selected)
+            </div>
+            <div style="font-size: 11px; color: #475569; font-weight: 500;">
+              ${statsHtml}
+            </div>
           </div>
         `,
         disableAutoPan: true,
@@ -245,16 +317,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
     }
   };
 
-  const handleMapTypeChange = (type: 'roadmap' | 'satellite' | 'hybrid' | 'terrain') => {
-    setActiveMapType(type);
-    setShowLayerMenu(false);
-    if (!mapRef.current) return;
 
-    if (type === 'roadmap') mapRef.current.setMapTypeId(google.maps.MapTypeId.ROADMAP);
-    if (type === 'satellite') mapRef.current.setMapTypeId(google.maps.MapTypeId.SATELLITE);
-    if (type === 'hybrid') mapRef.current.setMapTypeId(google.maps.MapTypeId.HYBRID);
-    if (type === 'terrain') mapRef.current.setMapTypeId(google.maps.MapTypeId.TERRAIN);
-  };
 
   if (error === 'MISSING_KEY') {
     return (
@@ -284,40 +347,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
         </div>
       )}
 
-      {/* Layer Switcher (Roadmap, Satellite, Hybrid, Terrain) */}
-      <div className="absolute bottom-4 left-4 z-10 flex items-center">
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowLayerMenu(!showLayerMenu)}
-            title="Toggle Map Style"
-            className="flex items-center gap-2.5 rounded-md bg-black/80 backdrop-blur-md px-3 py-2 shadow-lg border border-white/20 hover:bg-black/90 transition-all cursor-pointer text-white text-xs font-semibold tracking-wide"
-          >
-            <Layers className="h-3.5 w-3.5 text-[#8EE074]" />
-            <div className="flex flex-col text-left">
-              <span className="text-[9px] uppercase tracking-widest text-white/50 leading-none mb-0.5">Basemap</span>
-              <span className="capitalize leading-tight">{activeMapType}</span>
-            </div>
-          </button>
 
-          {showLayerMenu && (
-            <div className="absolute bottom-full left-0 mb-2 flex flex-col rounded-md bg-black/90 backdrop-blur-md p-1 shadow-xl border border-white/20 min-w-[130px] animate-in fade-in zoom-in-95 duration-150">
-              {(['roadmap', 'satellite', 'hybrid', 'terrain'] as const).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => handleMapTypeChange(type)}
-                  className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer rounded text-left capitalize ${
-                    activeMapType === type ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Modern Navigation Controls */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-1 rounded-md bg-black/80 backdrop-blur-md p-1 shadow-lg border border-white/20 text-white">
@@ -349,14 +379,18 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
       </div>
 
       {/* Route Legend */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 rounded-md bg-black/80 backdrop-blur-md px-3 py-1.5 text-[10px] font-medium tracking-wide shadow-lg border border-white/20 text-white">
-        <div className="flex items-center gap-1.5">
-          <span className="h-2 w-3 rounded-sm bg-[#2563eb]"></span>
-          <span>Selected Route</span>
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-4.5 rounded-full bg-black/50 backdrop-blur-xl px-5 py-2.5 text-[11px] font-semibold tracking-wide shadow-2xl border border-white/10 transition-all hover:bg-black/70 hover:border-white/20">
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#3b82f6] shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+          <span className="text-white">Clear</span>
         </div>
-        <div className="flex items-center gap-1.5 border-l border-white/20 pl-3">
-          <span className="h-2 w-3 rounded-sm bg-amber-500 border border-amber-300/50"></span>
-          <span className="text-white/70">Surge Slowdown</span>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#facc15] shadow-[0_0_8px_rgba(250,204,21,0.8)]"></span>
+          <span className="text-white/80">Mild</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.8)]"></span>
+          <span className="text-white/80">Heavy</span>
         </div>
       </div>
     </div>

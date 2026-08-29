@@ -55,6 +55,59 @@ export async function geocodeLocationQuery(queryText: string): Promise<LocationP
   return null;
 }
 
+export async function reverseGeocodeLocation(lat: number, lon: number): Promise<LocationPoint | null> {
+  // 1. Try Google Maps Geocoder if available
+  if (typeof google !== 'undefined' && google.maps && google.maps.Geocoder) {
+    try {
+      const geocoder = new google.maps.Geocoder();
+      const response = await geocoder.geocode({ location: { lat, lng: lon } });
+      if (response.results && response.results.length > 0) {
+        const top = response.results[0];
+        // For reverse geocoding, prefer a shorter name if possible (e.g., locality + city)
+        // But using formatted_address is safest fallback
+        let shortName = top.formatted_address;
+        const addressComponents = top.address_components;
+        if (addressComponents) {
+          const locality = addressComponents.find(c => c.types.includes('locality'))?.long_name;
+          const route = addressComponents.find(c => c.types.includes('route'))?.long_name;
+          if (locality && route) shortName = `${route}, ${locality}`;
+          else if (locality) shortName = locality;
+        }
+
+        return {
+          id: top.place_id,
+          label: shortName,
+          lat: top.geometry.location.lat(),
+          lon: top.geometry.location.lng(),
+        };
+      }
+    } catch (err) {
+      console.warn('Google Reverse Geocoder failed, falling back to Nominatim:', err);
+    }
+  }
+
+  // 2. Fallback to OpenStreetMap Nominatim
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`,
+      { headers: { 'Accept-Language': 'en-US' } }
+    );
+    const data = await response.json();
+    if (data && data.display_name) {
+      return {
+        id: data.place_id?.toString() || `${lat},${lon}`,
+        label: data.display_name,
+        lat: parseFloat(data.lat),
+        lon: parseFloat(data.lon),
+      };
+    }
+  } catch (err) {
+    console.error('Nominatim reverse geocoding failed:', err);
+  }
+
+  return null;
+}
+
 export function LocationAutocomplete({
   placeholder = 'Search location...',
   value,

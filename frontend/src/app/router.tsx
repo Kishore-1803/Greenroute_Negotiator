@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { PageShell } from '@/components/layout/PageShell';
 import { HomePage } from '@/pages/Home';
 
@@ -11,6 +12,23 @@ const HowItWorksPage = lazy(() => import('@/pages/HowItWorks').then((m) => ({ de
 
 const ImpactDashboardPage = lazy(() => import('@/pages/ImpactDashboard').then((m) => ({ default: m.ImpactDashboardPage })));
 const ProfilePage = lazy(() => import('@/pages/Profile').then((m) => ({ default: m.ProfilePage })));
+const LoginPage = lazy(() => import('@/pages/Auth/Login').then((m) => ({ default: m.LoginPage })));
+const SignUpPage = lazy(() => import('@/pages/Auth/SignUp').then((m) => ({ default: m.SignUpPage })));
+const NotFoundPage = lazy(() => import('@/pages/NotFound').then((m) => ({ default: m.NotFoundPage })));
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div className="flex h-64 w-full items-center justify-center text-sm text-white/70">Loading profile...</div>;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return <>{children}</>;
+}
 
 function withShell(children: React.ReactNode) {
   return (
@@ -20,11 +38,22 @@ function withShell(children: React.ReactNode) {
   );
 }
 
+function withAuthShell(children: React.ReactNode) {
+  return (
+    <div className="flex flex-col min-h-[100dvh] w-full">
+      <Suspense fallback={<div className="flex h-64 w-full items-center justify-center text-sm text-white/70">Loading page…</div>}>{children}</Suspense>
+    </div>
+  );
+}
+
 export const router = createBrowserRouter([
-  { path: '/', element: withShell(<HomePage />) },
-  { path: '/trip', element: withShell(<TripWorkspacePage />) },
-  { path: '/trip/:tripId', element: withShell(<TripWorkspacePage />) },
+  { path: '/', element: withShell(<ProtectedRoute><HomePage /></ProtectedRoute>) },
+  { path: '/login', element: withAuthShell(<LoginPage />) },
+  { path: '/signup', element: withAuthShell(<SignUpPage />) },
+  { path: '/trip', element: withShell(<ProtectedRoute><TripWorkspacePage /></ProtectedRoute>) },
+  { path: '/trip/:tripId', element: withShell(<ProtectedRoute><TripWorkspacePage /></ProtectedRoute>) },
   { path: '/how-it-works', element: withShell(<HowItWorksPage />) },
-  { path: '/impact', element: <Suspense fallback={<div />}> <ImpactDashboardPage /> </Suspense> },
-  { path: '/profile', element: withShell(<ProfilePage />) },
+  { path: '/impact', element: <Suspense fallback={<div />}><ProtectedRoute><ImpactDashboardPage /></ProtectedRoute></Suspense> },
+  { path: '/profile', element: withShell(<ProtectedRoute><ProfilePage /></ProtectedRoute>) },
+  { path: '*', element: withShell(<Suspense fallback={<div/>}><NotFoundPage /></Suspense>) },
 ]);

@@ -6,7 +6,7 @@ import { z } from 'zod';
  * loudly here instead of silently rendering `undefined` deep in a component.
  */
 
-export const TravelModeSchema = z.enum(['car', 'two_wheeler', 'cycling']);
+export const TravelModeSchema = z.enum(['car', 'two_wheeler', 'cycling', 'bus', 'metro']);
 export type TravelMode = z.infer<typeof TravelModeSchema>;
 
 const RouteGeometrySchema = z.object({
@@ -25,6 +25,12 @@ export const ModeMetricsDTOSchema = z.object({
   routing_source: z.string(),
   routing_disclosure: z.string().nullable().optional(),
   route_geometry: RouteGeometrySchema.nullable().optional(),
+  stops: z.array(z.tuple([z.number(), z.number()])).nullable().optional(),
+  traffic_segments: z.array(z.object({
+    start_idx: z.number(),
+    end_idx: z.number(),
+    level: z.string()
+  })).nullable().optional(),
 });
 export type ModeMetricsDTO = z.infer<typeof ModeMetricsDTOSchema>;
 
@@ -236,6 +242,9 @@ export interface SelectionRequest {
   selected_mode: TravelMode;
   /** Whether the user chose to cooperate via a shared ride or relay. */
   cooperation_used?: boolean;
+  origin_name?: string;
+  destination_name?: string;
+  duration_min?: number;
 }
 
 // --- Mobility Cooperation (carpool / relay) + Impact Dashboard (backend: schemas/cooperation.py,

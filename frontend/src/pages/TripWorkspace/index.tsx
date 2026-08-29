@@ -10,7 +10,7 @@ import { useNegotiationMutation } from '@/features/trip/hooks/useNegotiationMuta
 import { useSelectionMutation } from '@/features/trip/hooks/useSelectionMutation';
 import { useCooperationMutation } from '@/features/trip/hooks/useCooperationMutation';
 import type { BaselineResponse, ObjectionCategory } from '@/services/api/types';
-import { MOCK_LOCATIONS, type LocationPoint } from '@/lib/mockLocations';
+import { type LocationPoint } from '@/lib/mockLocations';
 import { getOrCreateUserId } from '@/lib/userId';
 import { DecisionWorkspacePanel } from './DecisionWorkspacePanel';
 import { ConditionChangeStatus } from './ConditionChangeStatus';
@@ -21,6 +21,8 @@ const MapView = lazy(() => import('@/features/map/MapView').then((m) => ({ defau
 interface LocationState {
   baseline?: BaselineResponse;
   willingToCarpool?: boolean;
+  origin?: LocationPoint;
+  destination?: LocationPoint;
 }
 
 export function TripWorkspacePage() {
@@ -28,8 +30,8 @@ export function TripWorkspacePage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [origin, setOrigin] = useState<LocationPoint | null>(MOCK_LOCATIONS[0]);
-  const [destination, setDestination] = useState<LocationPoint | null>(MOCK_LOCATIONS[1]);
+  const [origin, setOrigin] = useState<LocationPoint | null>(() => (location.state as LocationState | null)?.origin ?? null);
+  const [destination, setDestination] = useState<LocationPoint | null>(() => (location.state as LocationState | null)?.destination ?? null);
   // Carried in from the Home form via nav state; the workspace doesn't re-toggle it.
   const willingToCarpool = (location.state as LocationState | null)?.willingToCarpool ?? true;
 
@@ -148,7 +150,24 @@ export function TripWorkspacePage() {
   }
 
   function handleConfirmSelection(mode: TravelMode, cooperationUsed?: boolean) {
-    selection.mutate({ selected_mode: mode, cooperation_used: cooperationUsed });
+    const originName = origin?.label;
+    const destName = destination?.label;
+    
+    // Find duration for the selected mode
+    let durationMin: number | undefined;
+    const dataSource = decided && conditionChange.data ? conditionChange.data.after.modes : baselineData?.modes;
+    const selectedModeMetrics = dataSource?.find(m => m.mode === mode);
+    if (selectedModeMetrics && selectedModeMetrics.duration_min != null) {
+      durationMin = selectedModeMetrics.duration_min;
+    }
+    
+    selection.mutate({ 
+      selected_mode: mode, 
+      cooperation_used: cooperationUsed,
+      origin_name: originName,
+      destination_name: destName,
+      duration_min: durationMin
+    });
   }
 
   function handleObjection(category: ObjectionCategory) {
@@ -176,6 +195,12 @@ export function TripWorkspacePage() {
           mode: m.mode,
           geometry: m.route_geometry!,
           role: m.mode === primaryMode ? 'primary' : 'secondary',
+          stops: m.stops ?? undefined,
+          traffic_segments: m.traffic_segments ?? undefined,
+          distance_km: m.distance_km,
+          duration_min: m.duration_min,
+          estimated_cost_inr: m.estimated_cost_inr,
+          estimated_carbon_g: m.estimated_carbon_g,
         }));
 
       const baselineCar = baselineData.modes.find((m) => m.mode === 'car');
@@ -189,6 +214,12 @@ export function TripWorkspacePage() {
           mode: 'car-before-surge',
           geometry: baselineCar.route_geometry,
           role: 'ghost',
+          stops: baselineCar.stops ?? undefined,
+          traffic_segments: baselineCar.traffic_segments ?? undefined,
+          distance_km: baselineCar.distance_km,
+          duration_min: baselineCar.duration_min,
+          estimated_cost_inr: baselineCar.estimated_cost_inr,
+          estimated_carbon_g: baselineCar.estimated_carbon_g,
         });
       }
       return routes;
@@ -200,6 +231,12 @@ export function TripWorkspacePage() {
         mode: m.mode,
         geometry: m.route_geometry!,
         role: m.mode === selectedMode ? 'primary' : 'secondary',
+        stops: m.stops ?? undefined,
+        traffic_segments: m.traffic_segments ?? undefined,
+        distance_km: m.distance_km,
+        duration_min: m.duration_min,
+        estimated_cost_inr: m.estimated_cost_inr,
+        estimated_carbon_g: m.estimated_carbon_g,
       }));
   }, [baselineData, decided, conditionChange.data, selectedMode]);
 

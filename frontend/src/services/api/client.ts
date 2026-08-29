@@ -1,5 +1,6 @@
 import type { ZodType } from 'zod';
 import { toAppErrorFromException, toAppErrorFromResponse } from './errors';
+import { getToken } from '@/lib/auth';
 
 // A relative default is essential for LAN demos: a browser at another machine must call the
 // machine serving the frontend, not that browser's own localhost. Vite proxies /api in
@@ -25,9 +26,18 @@ export async function apiRequest<T>({ method, path, body, schema }: RequestOptio
 
   let response: Response;
   try {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (body !== undefined) {
+      headers['Content-Type'] = 'application/json';
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     response = await fetch(`${BASE_URL}${path}`, {
       method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal: controller.signal,
     });

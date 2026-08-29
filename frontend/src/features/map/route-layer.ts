@@ -8,6 +8,12 @@ export interface RouteLayerInput {
   mode: string;
   geometry: RouteGeometry;
   role: RouteRole;
+  stops?: [number, number][];
+  traffic_segments?: { start_idx: number; end_idx: number; level: string }[];
+  distance_km?: number | null;
+  duration_min?: number | null;
+  estimated_cost_inr?: number | null;
+  estimated_carbon_g?: number | null;
 }
 
 const SOURCE_ID = 'greenroute-routes';

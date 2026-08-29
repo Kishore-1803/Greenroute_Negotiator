@@ -1,5 +1,5 @@
 import { CheckCircle2, RefreshCw, ThumbsUp } from 'lucide-react';
-import { MODE_LABEL, type TravelMode } from '@/types/mode';
+import { MODE_LABEL, TRAVEL_MODES, type TravelMode } from '@/types/mode';
 import { formatCarbon, formatCost, formatDistance, formatMinutes } from '@/lib/formatMetrics';
 import type {
   BaselineResponse,
@@ -136,39 +136,11 @@ export function DecisionWorkspacePanel({
             </div>
           </div>
           
-          {/* Vehicle Mode Selector */}
-          <div className="grid grid-cols-3 gap-1.5 mt-2">
-            {(['car', 'two_wheeler', 'cycling'] as TravelMode[]).map((mode) => {
-              const isSelected = selectedMode === mode;
-              return (
-                <button
-                  key={mode}
-                  type="button"
-                  disabled={isBaselineLoading || isSurgeLoading}
-                  onClick={() => onSelectMode(mode)}
-                  className={cn(
-                    'flex flex-col items-center gap-1.5 rounded-xl p-2 border transition-all disabled:opacity-50 disabled:cursor-not-allowed',
-                    isSelected
-                      ? 'bg-[#4D7C3E] border-[#8EE074] shadow-[0_0_15px_rgba(77,124,62,0.2)]'
-                      : 'bg-white/5 border-white/10 hover:bg-white/10 cursor-pointer'
-                  )}
-                >
-                  <ModeIcon mode={mode} className={cn("h-4 w-4", isSelected ? "text-white" : "text-white/60")} />
-                  <span className={cn("text-[10px] font-semibold", isSelected ? "text-white" : "text-white/60")}>
-                    {MODE_LABEL[mode]}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-
-
           {/* Action Button */}
           <button
             type="button"
             disabled={isBaselineLoading || isSurgeLoading || !origin || !destination}
-            onClick={() => onFindRoute(selectedMode)}
+            onClick={() => onFindRoute('car')}
             className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl bg-[#8EE074] hover:bg-[#7ED064] text-[#1A2F16] py-2.5 px-4 text-xs font-extrabold transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isBaselineLoading ? (
@@ -223,7 +195,7 @@ export function DecisionWorkspacePanel({
 
         {baselineData ? (
           <div className="flex flex-col gap-1.5">
-            {(['car', 'two_wheeler', 'cycling'] as TravelMode[]).map((mode) => {
+            {TRAVEL_MODES.map((mode) => {
               const m = baselineData.modes.find((mm) => mm.mode === mode);
               const utility = baselineData.utilities[mode];
               const isRecommended = baselineData.best_mode === mode;
@@ -527,16 +499,7 @@ export function DecisionWorkspacePanel({
             <div className="rounded-xl bg-white/5 p-3 flex flex-col gap-2 border border-white/10 text-xs text-white/85 leading-relaxed">
               <p>{explanationData.summary || explanationData.reason}</p>
 
-              {explanationData.limitations && explanationData.limitations.length > 0 && (
-                <div className="pt-1.5 border-t border-white/10 text-[11px] text-white/60">
-                  <span className="font-semibold text-white/75">Model context:</span>
-                  <ul className="list-disc list-inside mt-0.5 space-y-0.5">
-                    {explanationData.limitations.map((lim, idx) => (
-                      <li key={idx}>{lim}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+
             </div>
           )}
 

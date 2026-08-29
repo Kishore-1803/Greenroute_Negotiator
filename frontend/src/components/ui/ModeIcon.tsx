@@ -1,10 +1,12 @@
-import { Bike, Car, Motorbike, type LucideProps } from 'lucide-react';
+import { Bike, Car, Motorbike, Bus, Train, type LucideProps } from 'lucide-react';
 import type { TravelMode } from '@/types/mode';
 
 const ICON_BY_MODE: Record<TravelMode, typeof Car> = {
   car: Car,
   two_wheeler: Motorbike,
   cycling: Bike,
+  bus: Bus,
+  metro: Train,
 };
 
 export function ModeIcon({ mode, ...rest }: { mode: TravelMode } & LucideProps) {

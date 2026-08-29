@@ -67,7 +67,7 @@ export function Header() {
             title="My Profile"
             className={({ isActive }) =>
               cn(
-                'flex h-10 w-10 sm:h-10.5 sm:w-10.5 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/25 text-white shadow-sm transition-all cursor-pointer active:scale-95',
+                'flex h-10 w-10 sm:h-10.5 sm:w-10.5 items-center justify-center rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md border border-white/20 text-white shadow-sm transition-all cursor-pointer active:scale-95',
                 isActive && 'bg-[#8EE074]/30 border-[#8EE074] text-[#8EE074] shadow-[0_0_12px_rgba(142,224,116,0.35)]'
               )
             }
@@ -80,7 +80,7 @@ export function Header() {
         <div className="flex items-center gap-2 sm:hidden">
           <NavLink
             to="/profile"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/25"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white border border-white/20"
           >
             <User className="h-4.5 w-4.5 text-white stroke-[1.75]" />
           </NavLink>
