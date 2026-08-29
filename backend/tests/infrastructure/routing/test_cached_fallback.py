@@ -6,7 +6,7 @@ import pytest
 
 from app.domain.common.errors import RoutingUnavailableError
 from app.infrastructure.config.settings import get_settings
-from app.infrastructure.routing.cached_fallback import CACHED_DEMO_ROUTES, CachedFallbackRoutingProvider
+from app.infrastructure.routing.osrm.cached_fallback import _CACHED_ROUTE_1, CachedFallbackRoutingProvider
 
 
 class _AlwaysDownRoutingProvider:
@@ -29,7 +29,7 @@ def wrapped(settings):
 
 async def test_osrm_down_on_the_known_demo_trip_serves_cached_routes(wrapped, settings):
     results = await wrapped.route_all_modes(settings.default_origin, settings.default_destination)
-    for mode, cached in CACHED_DEMO_ROUTES.items():
+    for mode, cached in _CACHED_ROUTE_1.items():
         assert results[mode].distance_km == cached.distance_km
         assert results[mode].duration_min == cached.duration_min
         assert results[mode].source == "cache"
@@ -43,7 +43,7 @@ async def test_osrm_down_on_an_unrelated_trip_fails_honestly_not_fabricated(wrap
 async def test_single_mode_route_also_falls_back_on_the_demo_trip(wrapped, settings):
     result = await wrapped.route("car", settings.default_origin, settings.default_destination)
     assert result.source == "cache"
-    assert result.distance_km == CACHED_DEMO_ROUTES["car"].distance_km
+    assert result.distance_km == _CACHED_ROUTE_1["car"].distance_km
 
 
 async def test_single_mode_route_reraises_for_an_unrelated_trip(wrapped):

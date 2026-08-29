@@ -109,12 +109,12 @@ def get_settings() -> Settings:
         elevenlabs_model=os.getenv("ELEVENLABS_MODEL", "eleven_turbo_v2_5"),
         elevenlabs_request_timeout_s=float(os.getenv("ELEVENLABS_REQUEST_TIMEOUT_S", "20.0")),
         default_origin=(
-            float(os.getenv("DEFAULT_ORIGIN_LON", "76.9605")),
-            float(os.getenv("DEFAULT_ORIGIN_LAT", "10.9955")),
+            float(os.getenv("DEFAULT_ORIGIN_LON", "80.2300")),
+            float(os.getenv("DEFAULT_ORIGIN_LAT", "13.0300")),
         ),
         default_destination=(
-            float(os.getenv("DEFAULT_DEST_LON", "76.9735")),
-            float(os.getenv("DEFAULT_DEST_LAT", "11.0070")),
+            float(os.getenv("DEFAULT_DEST_LON", "80.2450")),
+            float(os.getenv("DEFAULT_DEST_LAT", "13.0450")),
         ),
         preference_db_path=os.getenv("SQLITE_DB_PATH") or os.getenv("PREFERENCE_DB_PATH", "greenroute_prefs.db"),
     )
