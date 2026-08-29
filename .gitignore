@@ -35,6 +35,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Databases
+*.db
+*.sqlite3
+
 # Virtual Environments
 .venv/
 venv/
