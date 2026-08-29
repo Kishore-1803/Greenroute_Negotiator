@@ -49,3 +49,13 @@ async def test_single_mode_route_also_falls_back_on_the_demo_trip(wrapped, setti
 async def test_single_mode_route_reraises_for_an_unrelated_trip(wrapped):
     with pytest.raises(RoutingUnavailableError):
         await wrapped.route("car", (0.0, 0.0), (1.0, 1.0))
+
+
+def test_cached_fallback_implements_routing_provider_protocol(wrapped):
+    """Locks down that CachedFallbackRoutingProvider structurally satisfies the RoutingProvider
+    Protocol. RoutingProvider is @runtime_checkable so isinstance() works here. A future
+    refactor that silently drops or renames a Protocol method will fail this test immediately."""
+    from app.domain.routing.interfaces import RoutingProvider
+    assert isinstance(wrapped, RoutingProvider), (
+        "CachedFallbackRoutingProvider must implement the RoutingProvider protocol"
+    )

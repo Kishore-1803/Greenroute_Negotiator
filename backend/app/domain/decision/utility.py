@@ -2,11 +2,14 @@
 domain/decision/utility.py
 
 Deterministic utility engine -- the FINAL Blueprint formula (Phase 2's services/utility_engine.py,
-moved here as part of Phase 3's layering). See CLAUDE.md Section 10 for the frozen math this
-must never deviate from -- "frozen" means the normalization/aggregation *shape*, not the
-weights: Phase 6 (Master Plan Section 3/5's Preference Memory) makes the weight vector an
+moved here as part of Phase 3's layering). The frozen math: each mode's time/cost/carbon metric
+is min-max normalised across the active mode set (norm = (x - min) / (max - min), clamped to [0,1]),
+then utility = w_time*(1-norm_time) + w_cost*(1-norm_cost) + w_carbon*(1-norm_carbon) where weights
+sum to 1.0 (normalised before use). "Frozen" means this normalization/aggregation shape must not
+change. Phase 6 (Master Plan Section 3/5's Preference Memory) makes the weight vector an
 explicit, optional input so a per-user learned vector can replace the fixed default without
-touching the formula itself.
+touching the formula itself. (Note: CLAUDE.md is local development history and is not present
+on fresh clones -- the formula is reproduced here for that reason.)
 
     norm(m) = (max_value - value(m)) / (max_value - min_value); norm(m) = 1 if max==min
     Utility(m) = w_time * norm_time(m) + w_cost * norm_cost(m) + w_carbon * norm_carbon(m)

@@ -1,0 +1,47 @@
+# docker-compose.osrm.yml
+#
+# Brings up the 3 pre-processed OSRM routing instances for GreenRoute Negotiator.
+# Run from the repo root AFTER completing steps 1-3 of backend/data/osrm/README.md
+# (fetch OSM data, extract, partition, customize). This compose file only covers
+# step 4 (launch routed instances) -- the one-time extraction pipeline is NOT
+# automated here because it requires bind-mounts with large intermediate files
+# that differ by environment and should not be re-run on every `compose up`.
+#
+# Usage:
+#   docker compose -f docker-compose.osrm.yml up -d
+#   docker compose -f docker-compose.osrm.yml down
+#
+# Container names match the values already configured in settings.py (OSRMEndpoint.container_name)
+# and referenced by traffic.py's Docker restart logic. Changing them here WILL break the
+# traffic-surge feature silently -- keep them in sync with OSRM_PORT_* in .env.
+
+services:
+  osrm-car:
+    image: osrm/osrm-backend:latest
+    container_name: greenroute-osrm-car
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend/data/osrm/car:/data:ro
+    command: osrm-routed --algorithm mld /data/demo_region.osrm
+    restart: unless-stopped
+
+  osrm-two-wheeler:
+    image: osrm/osrm-backend:latest
+    container_name: greenroute-osrm-two-wheeler
+    ports:
+      - "5001:5000"
+    volumes:
+      - ./backend/data/osrm/two_wheeler:/data:ro
+    command: osrm-routed --algorithm mld /data/demo_region.osrm
+    restart: unless-stopped
+
+  osrm-cycle:
+    image: osrm/osrm-backend:latest
+    container_name: greenroute-osrm-cycle
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./backend/data/osrm/cycle:/data:ro
+    command: osrm-routed --algorithm mld /data/demo_region.osrm
+    restart: unless-stopped

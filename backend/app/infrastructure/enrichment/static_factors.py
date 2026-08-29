@@ -7,9 +7,9 @@ Moved unchanged from Phase 2's config/cost_carbon_factors.py + services/enrichme
 (merged into one file since the "config" and the "provider that uses it" are the same
 infrastructure concern now that they sit behind a domain interface).
 
-Every constant carries value/unit/source/year/scope/assumptions -- see CLAUDE.md Section 5b
-for the full sourcing writeup and what was found/rejected along the way. Do NOT add or change
-a factor here without the same rigor.
+Every constant carries value/unit/source/year/scope/assumptions inline in the CarbonFactor /
+CostFactor entries below -- the full sourcing rationale is self-contained here and does not
+require any external file. Do NOT add or change a factor without the same rigor.
 
 MASTER PLAN VALUE vs ADOPTED VALUE (auditable summary -- see CarbonFactor/CostFactor below for
 full source/year/scope/assumptions per row):

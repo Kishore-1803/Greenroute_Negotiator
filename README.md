@@ -53,7 +53,7 @@ cycling on `:5002`. Full setup commands (extract/partition/customize, per mode):
 [`backend/data/osrm/README.md`](backend/data/osrm/README.md).
 
 > Without OSRM running, the backend still starts and responds — routing calls fail over to a
-> cached demo route for the app's one fixed demo corridor (Coimbatore) and return
+> cached demo routes for the app's fixed demo corridors (Chennai, T. Nagar area) and return
 > `"routing_source": "unavailable"` for anything else. See
 > [`backend/app/infrastructure/routing/osrm/cached_fallback.py`](backend/app/infrastructure/routing/osrm/cached_fallback.py).
 
@@ -84,8 +84,8 @@ Production build: `npm run build` (runs `tsc -b && vite build`
 
 ### 4. Try it
 
-Open `http://localhost:5173`, enter an origin/destination (or use the pre-filled Coimbatore
-demo defaults), pick what matters most to you, and hit **Find Best Route**. You'll land on the
+Open `http://localhost:5173`, enter an origin/destination (or use the pre-filled Chennai
+demo defaults — T. Nagar → Gemini Flyover), pick what matters most to you, and hit **Find Best Route**. You'll land on the
 Trip Workspace with all three modes compared, a recommended mode, a "why" explanation, and a
 live agent negotiation feed you can trigger on demand.
 
@@ -331,7 +331,7 @@ component tests, wire up a `test` script in `package.json` pointing at `vitest r
 | `PREFERENCE_DB_PATH` | `greenroute_preferences.db` | SQLite file for Preference Memory |
 | `OSRM_HOST` | `http://localhost` | OSRM base host |
 | `OSRM_PORT_CAR` / `_TWO_WHEELER` / `_CYCLING` | `5000` / `5001` / `5002` | Per-mode OSRM ports |
-| `DEFAULT_ORIGIN_LON/LAT`, `DEFAULT_DEST_LON/LAT` | Coimbatore demo pair | Used by the cached-fallback route and `/internal` debug routes |
+| `DEFAULT_ORIGIN_LON/LAT`, `DEFAULT_DEST_LON/LAT` | Chennai demo pair (T. Nagar → Gemini) | Used by the cached-fallback route and `/internal` debug routes |
 | `GREENROUTE_ENV` | `development` | Set anything else to disable the `/internal/*` debug routes (they 404) |
 | `CORS_ALLOW_ORIGINS` | local Vite origins | Explicit comma-separated allowlist for direct browser-to-API deployments. The `/api` proxy does not need it. |
 

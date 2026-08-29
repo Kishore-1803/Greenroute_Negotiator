@@ -8,11 +8,12 @@ imports httpx, OSRM, Docker, or any other infrastructure concern.
 
 from __future__ import annotations
 
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
 from app.domain.routing.entities import RouteMetrics
 
 
+@runtime_checkable
 class RoutingProvider(Protocol):
     """route(origin, destination, profile) -- Blueprint Section 1's OSRM role, abstracted."""
 

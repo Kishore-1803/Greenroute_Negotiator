@@ -137,7 +137,7 @@ export function HomePage() {
           </div>
 
           {/* Demo Route Card - Matching Width. Copy matches FIXED_TRIP exactly -- this button
-              launches that Coimbatore corridor, not an aspirational long-distance route. */}
+              launches that Chennai corridor (T. Nagar → Gemini Flyover), not an aspirational long-distance route. */}
           <div className="glass-pane w-[320px] sm:w-[330px] rounded-[24px] p-4 sm:p-4.5 shrink-0 shadow-xl">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-semibold text-white/70">Try the Demo Route</span>

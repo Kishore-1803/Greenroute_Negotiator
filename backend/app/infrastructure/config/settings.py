@@ -35,6 +35,10 @@ class Settings:
     log_level: str
 
     osrm_host: str
+    # NOTE: frozen=True prevents reassignment of osrm_endpoints but NOT in-place mutation of
+    # the dict's contents (e.g. osrm_endpoints["car"].port would fail on the frozen OSRMEndpoint
+    # but osrm_endpoints["car"] = ... would not). Low practical risk for a demo; a stricter fix
+    # would use types.MappingProxyType here.
     osrm_endpoints: dict[str, OSRMEndpoint]
     osrm_request_timeout_s: float
     osrm_customize_timeout_s: float
@@ -82,12 +86,12 @@ def get_settings() -> Settings:
         groq_model_explanation=os.getenv("GROQ_MODEL_EXPLANATION", "llama-3.3-70b-versatile"),
         groq_model_negotiation=os.getenv("GROQ_MODEL_NEGOTIATION", "llama-3.3-70b-versatile"),
         default_origin=(
-            float(os.getenv("DEFAULT_ORIGIN_LON", "76.9605")),
-            float(os.getenv("DEFAULT_ORIGIN_LAT", "10.9955")),
+            float(os.getenv("DEFAULT_ORIGIN_LON", "80.2300")),
+            float(os.getenv("DEFAULT_ORIGIN_LAT", "13.0300")),
         ),
         default_destination=(
-            float(os.getenv("DEFAULT_DEST_LON", "76.9735")),
-            float(os.getenv("DEFAULT_DEST_LAT", "11.0070")),
+            float(os.getenv("DEFAULT_DEST_LON", "80.2450")),
+            float(os.getenv("DEFAULT_DEST_LAT", "13.0450")),
         ),
         preference_db_path=os.getenv("PREFERENCE_DB_PATH", "greenroute_preferences.db"),
     )

@@ -15,6 +15,7 @@ supported target, by design, not as an oversight.
 
 from __future__ import annotations
 
+import asyncio
 import csv
 import logging
 import subprocess
@@ -97,7 +98,7 @@ class OSRMTrafficSimulator:
                 return round(time.perf_counter() - start, 3)
             except RoutingUnavailableError as exc:
                 last_error = exc
-                time.sleep(0.5)
+                await asyncio.sleep(0.5)
         raise RoutingUnavailableError(f"car instance did not become ready within {max_wait_s}s: {last_error}")
 
     async def apply_condition_change(
