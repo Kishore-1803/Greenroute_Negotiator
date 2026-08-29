@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { ArrowRight, Menu, X } from 'lucide-react';
+import { ArrowRight, Menu, X, User } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 const NAV_LINKS = [
-  { to: '/', label: 'Home' },
   { to: '/trip', label: 'Trip' },
   { to: '/how-it-works', label: 'How It Works' },
   { to: '/impact', label: 'Impact' },
@@ -45,7 +44,7 @@ export function Header() {
         </nav>
 
         {/* Very Right: Action Controls */}
-        <div className="hidden items-center gap-4 sm:flex shrink-0">
+        <div className="hidden items-center gap-3 sm:flex shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -56,23 +55,45 @@ export function Header() {
                 navigate('/');
               }
             }}
-            className="flex items-center gap-2 rounded-full bg-[#4D7C3E] hover:bg-[#5A8F48] px-6 py-2.5 text-base font-medium text-white shadow-md active:scale-95 transition-all cursor-pointer"
+            className="flex items-center gap-2 rounded-full bg-[#4D7C3E] hover:bg-[#5A8F48] px-5 py-2 text-sm lg:text-base font-medium text-white shadow-md active:scale-95 transition-all cursor-pointer"
           >
             <span>Get Started</span>
-            <ArrowRight className="h-4.5 w-4.5" />
+            <ArrowRight className="h-4 w-4" />
           </button>
+
+          {/* Profile Avatar Button */}
+          <NavLink
+            to="/profile"
+            title="My Profile"
+            className={({ isActive }) =>
+              cn(
+                'flex h-10 w-10 sm:h-10.5 sm:w-10.5 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md border border-white/25 text-white shadow-sm transition-all cursor-pointer active:scale-95',
+                isActive && 'bg-[#8EE074]/30 border-[#8EE074] text-[#8EE074] shadow-[0_0_12px_rgba(142,224,116,0.35)]'
+              )
+            }
+          >
+            <User className="h-5 w-5 text-white/95 stroke-[1.75]" />
+          </NavLink>
         </div>
 
         {/* Mobile Menu Button */}
-        <button
-          type="button"
-          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-          aria-expanded={mobileOpen}
-          onClick={() => setMobileOpen((open) => !open)}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white border border-white/10 hover:bg-white/25 sm:hidden"
-        >
-          {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
+        <div className="flex items-center gap-2 sm:hidden">
+          <NavLink
+            to="/profile"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/25"
+          >
+            <User className="h-4.5 w-4.5 text-white stroke-[1.75]" />
+          </NavLink>
+          <button
+            type="button"
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+            aria-expanded={mobileOpen}
+            onClick={() => setMobileOpen((open) => !open)}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white border border-white/10 hover:bg-white/25"
+          >
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Dropdown */}
@@ -94,6 +115,18 @@ export function Header() {
               {link.label}
             </NavLink>
           ))}
+          <NavLink
+            to="/profile"
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) =>
+              cn(
+                'rounded-xl px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-2',
+                isActive ? 'bg-emerald-600/40 text-[#75E265] font-semibold' : 'text-white/80 hover:bg-white/10 text-white'
+              )
+            }
+          >
+            <span>My Profile</span>
+          </NavLink>
           <button
             type="button"
             onClick={() => {

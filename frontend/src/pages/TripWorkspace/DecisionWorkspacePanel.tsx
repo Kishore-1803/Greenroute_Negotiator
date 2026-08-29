@@ -72,7 +72,6 @@ export function DecisionWorkspacePanel({
   selectionStatus,
   cooperationData,
   cooperationStatus,
-  onFindCooperation,
 }: DecisionWorkspacePanelProps) {
   const isPlanning = phase === 'planning';
   const isBaselineLoading = phase === 'baseline_loading';

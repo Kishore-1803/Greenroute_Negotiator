@@ -89,9 +89,6 @@ export function HomePage() {
           <div className="glass-pane w-[320px] sm:w-[330px] rounded-[26px] p-5 sm:p-5.5 flex flex-col justify-between gap-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
               <h3 className="text-sm sm:text-[15px] font-bold text-white tracking-wide">Why GreenRoute?</h3>
-              <span className="rounded-full bg-[#8EE074]/15 px-2 py-0.5 text-[10px] font-bold text-[#8EE074] border border-[#8EE074]/25">
-                AI + Math
-              </span>
             </div>
 
             <div className="flex flex-col gap-3.5">

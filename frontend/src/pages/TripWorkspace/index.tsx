@@ -69,7 +69,7 @@ export function TripWorkspacePage() {
     }
   }, [phase]);
 
-  const [willingToCarpool, setWillingToCarpool] = useState<boolean>(
+  const [willingToCarpool] = useState<boolean>(
     () => (location.state as any)?.willingToCarpool ?? true
   );
 
