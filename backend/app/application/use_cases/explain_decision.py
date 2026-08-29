@@ -14,7 +14,7 @@ from app.domain.common.errors import DecisionFailureError, ExplanationProviderFa
 from app.domain.decision.entities import Trip
 from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
 from app.domain.explanation.interfaces import ExplanationProvider, UnsupportedNumberError, validate_output
-from app.application.services.trip_store import InMemoryTripStore
+from app.application.services.trip_store import TripStore
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ class ExplainDecisionUseCase:
         self,
         primary_provider: ExplanationProvider,
         fallback_provider: ExplanationProvider,
-        trip_store: InMemoryTripStore,
+        trip_store: TripStore,
     ):
         self._primary = primary_provider
         self._fallback = fallback_provider

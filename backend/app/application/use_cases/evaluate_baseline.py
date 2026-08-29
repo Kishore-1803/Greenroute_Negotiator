@@ -19,7 +19,7 @@ from app.domain.enrichment.interfaces import CostCarbonProvider
 from app.domain.preference.entities import STATED_PRIORITIES, UserPreference
 from app.domain.preference.interfaces import PreferenceStore
 from app.domain.routing.interfaces import RoutingProvider
-from app.application.services.trip_store import InMemoryTripStore
+from app.application.services.trip_store import TripStore
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class EvaluateBaselineUseCase:
         self,
         routing: RoutingProvider,
         enrichment: CostCarbonProvider,
-        trip_store: InMemoryTripStore,
+        trip_store: TripStore,
         preference_store: PreferenceStore,
     ):
         self._routing = routing

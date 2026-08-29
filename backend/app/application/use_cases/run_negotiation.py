@@ -17,7 +17,7 @@ from app.domain.common.errors import DecisionFailureError, NegotiationProviderFa
 from app.domain.decision.entities import Trip
 from app.domain.negotiation.entities import ModeSnapshot, NegotiationContext, NegotiationTranscript
 from app.domain.negotiation.interfaces import CoordinatorOverrideError, NegotiationProvider, UnsupportedNumberError, validate_transcript
-from app.application.services.trip_store import InMemoryTripStore
+from app.application.services.trip_store import TripStore
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +56,7 @@ class NegotiationResult:
 
 
 class RunNegotiationUseCase:
-    def __init__(self, primary_provider: NegotiationProvider, fallback_provider: NegotiationProvider, trip_store: InMemoryTripStore):
+    def __init__(self, primary_provider: NegotiationProvider, fallback_provider: NegotiationProvider, trip_store: TripStore):
         self._primary = primary_provider
         self._fallback = fallback_provider
         self._trip_store = trip_store

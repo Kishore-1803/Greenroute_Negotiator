@@ -16,7 +16,7 @@ from app.domain.decision.switch_policy import evaluate_switch
 from app.domain.decision.utility import compute_utility_scores
 from app.domain.enrichment.interfaces import CostCarbonProvider
 from app.domain.routing.interfaces import ConditionChangeSimulator
-from app.application.services.trip_store import InMemoryTripStore
+from app.application.services.trip_store import TripStore
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class TriggerConditionChangeUseCase:
         self,
         traffic_simulator: ConditionChangeSimulator,
         enrichment: CostCarbonProvider,
-        trip_store: InMemoryTripStore,
+        trip_store: TripStore,
     ):
         self._traffic_simulator = traffic_simulator
         self._enrichment = enrichment

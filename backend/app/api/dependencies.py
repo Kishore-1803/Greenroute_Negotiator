@@ -15,13 +15,15 @@ from functools import lru_cache
 
 from app.domain.common.errors import ExplanationProviderFailureError, NegotiationProviderFailureError
 from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
-from app.application.services.trip_store import InMemoryTripStore
+
 from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
 from app.application.use_cases.explain_decision import ExplainDecisionUseCase
 from app.application.use_cases.record_selection import RecordSelectionUseCase
 from app.application.use_cases.run_negotiation import RunNegotiationUseCase
 from app.application.use_cases.trigger_condition_change import TriggerConditionChangeUseCase
 from app.domain.negotiation.entities import NegotiationContext, NegotiationTranscript
+from app.application.services.trip_store import TripStore
+from app.infrastructure.storage.sqlite_trip_store import SQLiteTripStore
 from app.infrastructure.config.settings import get_settings
 from app.infrastructure.enrichment.static_factors import StaticCostCarbonProvider
 from app.infrastructure.llm.fallback import DeterministicFallbackExplanationProvider
@@ -78,8 +80,8 @@ def get_enrichment_provider() -> StaticCostCarbonProvider:
 
 
 @lru_cache(maxsize=1)
-def get_trip_store() -> InMemoryTripStore:
-    return InMemoryTripStore()
+def get_trip_store() -> TripStore:
+    return SQLiteTripStore(get_settings().preference_db_path)
 
 
 @lru_cache(maxsize=1)

@@ -16,7 +16,7 @@ from app.domain.common.errors import ValidationError
 from app.domain.decision.entities import TRACKED_MODES, Trip
 from app.domain.preference.entities import UserPreference
 from app.domain.preference.interfaces import PreferenceStore
-from app.application.services.trip_store import InMemoryTripStore
+from app.application.services.trip_store import TripStore
 
 
 @dataclass(frozen=True)
@@ -39,7 +39,7 @@ def _recommended_mode(trip: Trip) -> str:
 
 
 class RecordSelectionUseCase:
-    def __init__(self, preference_store: PreferenceStore, trip_store: InMemoryTripStore):
+    def __init__(self, preference_store: PreferenceStore, trip_store: TripStore):
         self._preference_store = preference_store
         self._trip_store = trip_store
 

@@ -17,7 +17,22 @@ from app.api.dependencies import (
     get_run_negotiation_use_case,
     get_trigger_condition_change_use_case,
 )
-from app.application.services.trip_store import InMemoryTripStore
+from app.application.services.trip_store import TripStore
+from app.domain.common.errors import TripNotFoundError
+from app.domain.decision.entities import Trip
+
+class InMemoryTripStore:
+    def __init__(self):
+        self._trips: dict[str, Trip] = {}
+
+    def save(self, trip: Trip) -> None:
+        self._trips[trip.trip_id] = trip
+
+    def get(self, trip_id: str) -> Trip:
+        trip = self._trips.get(trip_id)
+        if trip is None:
+            raise TripNotFoundError(f"unknown trip_id {trip_id!r}")
+        return trip
 from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
 from app.application.use_cases.explain_decision import ExplainDecisionUseCase
 from app.application.use_cases.record_selection import RecordSelectionUseCase
