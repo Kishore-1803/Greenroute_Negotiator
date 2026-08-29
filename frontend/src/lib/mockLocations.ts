@@ -1,11 +1,13 @@
 export interface LocationPoint {
-  id: string;
-  label: string;
-  lon: number;
+  id?: string;
   lat: number;
+  lon: number;
+  label: string;
 }
 
 export const MOCK_LOCATIONS: LocationPoint[] = [
-  { id: '1', label: 'Origin (Example)', lat: 28.6139, lon: 77.2090 },
-  { id: '2', label: 'Destination (Example)', lat: 28.5562, lon: 77.1000 }
+  { lat: 10.9955, lon: 76.9605, label: "Tidel Park, Coimbatore" },
+  { lat: 11.0070, lon: 76.9735, label: "PSG Tech, Coimbatore" },
+  { lat: 11.0168, lon: 76.9558, label: "Gandhipuram, Coimbatore" },
+  { lat: 11.0183, lon: 76.9725, label: "Peelamedu, Coimbatore" },
 ];
