@@ -6,7 +6,7 @@ import pytest
 
 from app.domain.common.errors import RoutingUnavailableError
 from app.infrastructure.config.settings import get_settings
-from app.infrastructure.routing.osrm.cached_fallback import CACHED_DEMO_ROUTES, CachedFallbackRoutingProvider
+from app.infrastructure.routing.cached_fallback import CACHED_DEMO_ROUTES, CachedFallbackRoutingProvider
 
 
 class _AlwaysDownRoutingProvider:

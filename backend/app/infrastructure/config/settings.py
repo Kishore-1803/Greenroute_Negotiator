@@ -22,23 +22,11 @@ load_dotenv()
 
 
 @dataclass(frozen=True)
-class OSRMEndpoint:
-    mode: str
-    port: int
-    profile_segment: str  # "driving" | "cycling" -- the /route/v1/{profile}/ URL segment
-    container_name: str
-
-
-@dataclass(frozen=True)
 class Settings:
     environment: str
     log_level: str
 
-    osrm_host: str
-    osrm_endpoints: dict[str, OSRMEndpoint]
-    osrm_request_timeout_s: float
-    osrm_customize_timeout_s: float
-    osrm_container_ready_timeout_s: float
+    google_maps_api_key: str | None
 
     groq_api_key: str | None
     groq_model_explanation: str
@@ -67,17 +55,7 @@ def get_settings() -> Settings:
             ).split(",")
             if origin.strip()
         ],
-        osrm_host=os.getenv("OSRM_HOST", "http://localhost"),
-        osrm_endpoints={
-            "car": OSRMEndpoint("car", int(os.getenv("OSRM_PORT_CAR", "5000")), "driving", "greenroute-osrm-car"),
-            "two_wheeler": OSRMEndpoint(
-                "two_wheeler", int(os.getenv("OSRM_PORT_TWO_WHEELER", "5001")), "driving", "greenroute-osrm-two-wheeler"
-            ),
-            "cycling": OSRMEndpoint("cycling", int(os.getenv("OSRM_PORT_CYCLING", "5002")), "cycling", "greenroute-osrm-cycle"),
-        },
-        osrm_request_timeout_s=float(os.getenv("OSRM_REQUEST_TIMEOUT_S", "5.0")),
-        osrm_customize_timeout_s=float(os.getenv("OSRM_CUSTOMIZE_TIMEOUT_S", "10.0")),
-        osrm_container_ready_timeout_s=float(os.getenv("OSRM_CONTAINER_READY_TIMEOUT_S", "15.0")),
+        google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY") or None,
         groq_api_key=os.getenv("GROQ_API_KEY") or None,
         groq_model_explanation=os.getenv("GROQ_MODEL_EXPLANATION", "llama-3.3-70b-versatile"),
         groq_model_negotiation=os.getenv("GROQ_MODEL_NEGOTIATION", "llama-3.3-70b-versatile"),
