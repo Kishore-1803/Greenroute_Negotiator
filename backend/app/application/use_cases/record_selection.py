@@ -12,11 +12,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.application.services.trip_store import TripStore
 from app.domain.common.errors import ValidationError
 from app.domain.decision.entities import TRACKED_MODES, Trip
 from app.domain.preference.entities import UserPreference
 from app.domain.preference.interfaces import PreferenceStore
-from app.application.services.trip_store import TripStore
 
 
 @dataclass(frozen=True)

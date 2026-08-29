@@ -11,7 +11,11 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.domain.negotiation.entities import NegotiationContext, NegotiationTranscript, extract_numbers
+from app.domain.negotiation.entities import (
+    NegotiationContext,
+    NegotiationTranscript,
+    extract_numbers,
+)
 
 
 class NegotiationProvider(Protocol):

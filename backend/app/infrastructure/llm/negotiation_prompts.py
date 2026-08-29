@@ -93,7 +93,7 @@ def panel_round_1_system_prompt() -> str:
 
 
 def panel_round_1_user_prompt(context: NegotiationContext) -> str:
-    positions = {agent: context.advocate_for(agent) for agent in _AGENT_VOICE.keys()}
+    positions = {agent: context.advocate_for(agent) for agent in _AGENT_VOICE}
     return (
         f"Per-mode facts: {_facts_block(context)}\n\n"
         f"The data-grounded positions for this round are: {positions}\n\n"
@@ -116,7 +116,7 @@ def panel_round_2_system_prompt() -> str:
 
 
 def panel_round_2_user_prompt(context: NegotiationContext, round_1: list[AgentArgument]) -> str:
-    positions = {agent: context.advocate_for(agent) for agent in _AGENT_VOICE.keys()}
+    positions = {agent: context.advocate_for(agent) for agent in _AGENT_VOICE}
     r1_text = "\n".join(f"- {a.agent} agent (advocating {a.mode_advocated}): \"{a.message}\"" for a in round_1)
     return (
         f"Per-mode facts: {_facts_block(context)}\n\n"

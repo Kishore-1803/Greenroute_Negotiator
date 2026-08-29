@@ -4,6 +4,7 @@ infrastructure/cooperation/transit_hubs.py
 
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class TransitHub:
     id: str

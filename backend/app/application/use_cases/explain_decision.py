@@ -10,11 +10,18 @@ from __future__ import annotations
 
 import logging
 
-from app.domain.common.errors import DecisionFailureError, ExplanationProviderFailureError
+from app.application.services.trip_store import TripStore
+from app.domain.common.errors import (
+    DecisionFailureError,
+    ExplanationProviderFailureError,
+)
 from app.domain.decision.entities import Trip
 from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
-from app.domain.explanation.interfaces import ExplanationProvider, UnsupportedNumberError, validate_output
-from app.application.services.trip_store import TripStore
+from app.domain.explanation.interfaces import (
+    ExplanationProvider,
+    UnsupportedNumberError,
+    validate_output,
+)
 
 logger = logging.getLogger(__name__)
 

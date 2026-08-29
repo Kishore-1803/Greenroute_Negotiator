@@ -3,19 +3,18 @@ application/use_cases/find_cooperation.py
 """
 
 import logging
-from app.domain.routing.interfaces import RoutingProvider
-from app.domain.cooperation.overlap import (
-    compatibility, 
-    assign_cooperation_type, 
-    RELAY_AUTO_MAX_HAVERSINE_KM,
-    RELAY_WALK_MAX_HAVERSINE_KM
-)
+
+from pydantic import BaseModel
+
 from app.domain.cooperation.entities import CooperationCandidate
+from app.domain.cooperation.overlap import (
+    assign_cooperation_type,
+    compatibility,
+)
+from app.domain.routing.interfaces import RoutingProvider
 from app.infrastructure.cooperation.commuter_pool import COIMBATORE_COMMUTERS
 from app.infrastructure.cooperation.transit_hubs import COIMBATORE_TRANSIT_HUBS
 from app.infrastructure.storage.sqlite_trip_store import SQLiteTripStore
-from typing import List, Optional
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +25,8 @@ class TravelerNegotiationResult(BaseModel):
     deal_reached: bool
 
 class CooperationResult(BaseModel):
-    candidates: List[CooperationCandidate]
-    negotiation: Optional[TravelerNegotiationResult]
+    candidates: list[CooperationCandidate]
+    negotiation: TravelerNegotiationResult | None
 
 class FindCooperationUseCase:
     def __init__(self, routing_provider: RoutingProvider, trip_store: SQLiteTripStore, negotiation_provider=None):
@@ -126,7 +125,9 @@ class FindCooperationUseCase:
             if self.negotiation_provider:
                 negotiation = await self.negotiation_provider.negotiate(best, trip, departure_hour)
             else:
-                from app.infrastructure.llm.traveler_negotiation_fallback import FallbackNegotiationProvider
+                from app.infrastructure.llm.traveler_negotiation_fallback import (
+                    FallbackNegotiationProvider,
+                )
                 negotiation = await FallbackNegotiationProvider().negotiate(best, trip, departure_hour)
             
         return CooperationResult(candidates=top_candidates, negotiation=negotiation)

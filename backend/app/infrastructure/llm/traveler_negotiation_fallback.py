@@ -2,8 +2,9 @@
 infrastructure/llm/traveler_negotiation_fallback.py
 """
 
-from app.domain.cooperation.entities import CooperationCandidate
 from app.application.use_cases.find_cooperation import TravelerNegotiationResult
+from app.domain.cooperation.entities import CooperationCandidate
+
 
 class FallbackNegotiationProvider:
     async def negotiate(self, candidate: CooperationCandidate, trip, departure_hour: float) -> TravelerNegotiationResult:

@@ -12,7 +12,13 @@ number-grounding are already pure functions of the actual metrics, so there is n
 
 from __future__ import annotations
 
-from app.domain.negotiation.entities import AGENT_ROLES, AgentArgument, CoordinatorNarration, NegotiationContext, NegotiationTranscript
+from app.domain.negotiation.entities import (
+    AGENT_ROLES,
+    AgentArgument,
+    CoordinatorNarration,
+    NegotiationContext,
+    NegotiationTranscript,
+)
 
 _METRIC_LABEL = {"speed": "duration_min", "cost": "estimated_cost_inr", "carbon": "estimated_carbon_g", "weather": "duration_min"}
 _METRIC_UNIT = {"speed": "min", "cost": "INR", "carbon": "g CO2", "weather": "min"}

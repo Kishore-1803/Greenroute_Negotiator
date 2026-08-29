@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.error_handlers import register_error_handlers
-from app.api.routers import health, internal_debug, network, speech, trips, users
+from app.api.routers import auth, health, internal_debug, network, speech, trips, users
 from app.infrastructure.config.settings import get_settings
 from app.infrastructure.observability.logging import configure_logging
 
@@ -36,7 +36,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_allow_origins,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type"],
+    allow_headers=["*"],
     # /speech/narrate returns audio with these; a direct browser-to-API (non-proxy) setup
     # needs them explicitly exposed to read the provider/voice off the response.
     expose_headers=["X-Speech-Provider", "X-Speech-Voice", "X-Speech-Characters"],
@@ -45,6 +45,7 @@ app.add_middleware(
 register_error_handlers(app)
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(trips.router)
 app.include_router(network.router)
 app.include_router(speech.router)

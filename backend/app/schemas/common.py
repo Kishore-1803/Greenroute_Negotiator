@@ -18,6 +18,8 @@ class ModeMetricsDTO(BaseModel):
     routing_source: str
     routing_disclosure: str | None = None
     route_geometry: dict | None = None
+    stops: list[tuple[float, float]] | None = None
+    traffic_segments: list[dict] | None = None
 
 
 class UtilityScoreDTO(BaseModel):

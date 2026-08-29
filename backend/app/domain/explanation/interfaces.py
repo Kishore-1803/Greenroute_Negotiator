@@ -12,7 +12,11 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.domain.explanation.entities import ExplanationContext, ExplanationOutput, extract_numbers
+from app.domain.explanation.entities import (
+    ExplanationContext,
+    ExplanationOutput,
+    extract_numbers,
+)
 
 
 class ExplanationProvider(Protocol):

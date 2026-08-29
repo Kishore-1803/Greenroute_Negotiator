@@ -1,7 +1,7 @@
-import httpx
-from typing import Optional
 import logging
 from dataclasses import dataclass
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ class WeatherCondition:
     is_raining: bool
 
 class WeatherProvider:
-    def __init__(self, api_key: Optional[str]):
+    def __init__(self, api_key: str | None):
         # Treat placeholder strings as unset
         if api_key and (api_key.startswith("your-") or "placeholder" in api_key.lower() or api_key == "test"):
             self.api_key = None
@@ -21,7 +21,7 @@ class WeatherProvider:
             self.api_key = api_key
         self.base_url = "http://api.weatherstack.com/current"
     
-    async def get_current_weather(self, origin: tuple[float, float]) -> Optional[WeatherCondition]:
+    async def get_current_weather(self, origin: tuple[float, float]) -> WeatherCondition | None:
         if not self.api_key or not self.api_key.strip():
             logger.debug("WeatherStack API key not configured, skipping weather enrichment.")
             return None

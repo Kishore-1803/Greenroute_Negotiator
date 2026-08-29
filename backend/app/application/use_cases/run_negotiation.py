@@ -13,11 +13,23 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
-from app.domain.common.errors import DecisionFailureError, NegotiationProviderFailureError
-from app.domain.decision.entities import Trip
-from app.domain.negotiation.entities import ModeSnapshot, NegotiationContext, NegotiationTranscript
-from app.domain.negotiation.interfaces import CoordinatorOverrideError, NegotiationProvider, UnsupportedNumberError, validate_transcript
 from app.application.services.trip_store import TripStore
+from app.domain.common.errors import (
+    DecisionFailureError,
+    NegotiationProviderFailureError,
+)
+from app.domain.decision.entities import Trip
+from app.domain.negotiation.entities import (
+    ModeSnapshot,
+    NegotiationContext,
+    NegotiationTranscript,
+)
+from app.domain.negotiation.interfaces import (
+    CoordinatorOverrideError,
+    NegotiationProvider,
+    UnsupportedNumberError,
+    validate_transcript,
+)
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@ domain/cooperation/overlap.py
 """
 
 import math
-from typing import Optional, Tuple
+
 from app.infrastructure.cooperation.transit_hubs import TransitHub
 
 RELAY_WALK_MAX_HAVERSINE_KM = 0.6
@@ -16,7 +16,7 @@ def haversine(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
     return R * 2 * math.asin(math.sqrt(a))
 
-def find_nearest_hub(location: tuple[float, float], hubs: list[TransitHub]) -> tuple[Optional[TransitHub], float]:
+def find_nearest_hub(location: tuple[float, float], hubs: list[TransitHub]) -> tuple[TransitHub | None, float]:
     best_hub = None
     best_dist = float('inf')
     for hub in hubs:
@@ -71,7 +71,7 @@ def compatibility(user_origin, user_dest, user_departure_hour: float,
     
     return alpha * overlap - beta * detour - gamma * time_m + delta * carbon_s + epsilon * cost_s
 
-def assign_cooperation_type(user_origin, user_dest, commuter, transit_hubs: list[TransitHub]) -> tuple[Optional[str], Optional[TransitHub], Optional[float], Optional[str]]:
+def assign_cooperation_type(user_origin, user_dest, commuter, transit_hubs: list[TransitHub]) -> tuple[str | None, TransitHub | None, float | None, str | None]:
     nearest_hub, hub_dist = find_nearest_hub(commuter.destination, transit_hubs)
     relay_eligible = hub_dist <= RELAY_AUTO_MAX_HAVERSINE_KM
     

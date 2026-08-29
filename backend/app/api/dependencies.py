@@ -17,37 +17,41 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from app.domain.common.errors import (
-    ExplanationProviderFailureError,
-    NegotiationProviderFailureError,
-    SpeechUnavailableError,
-)
-from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
-from app.domain.speech.entities import Narration
-
+from app.application.services.negotiation_log_store import NegotiationLogStore
+from app.application.services.trip_store import TripStore
 from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
 from app.application.use_cases.explain_decision import ExplainDecisionUseCase
 from app.application.use_cases.narrate_text import NarrateTextUseCase
 from app.application.use_cases.negotiate_journey import NegotiateJourneyUseCase
 from app.application.use_cases.record_selection import RecordSelectionUseCase
 from app.application.use_cases.run_negotiation import RunNegotiationUseCase
-from app.application.use_cases.trigger_condition_change import TriggerConditionChangeUseCase
+from app.application.use_cases.trigger_condition_change import (
+    TriggerConditionChangeUseCase,
+)
+from app.domain.common.errors import (
+    ExplanationProviderFailureError,
+    NegotiationProviderFailureError,
+    SpeechUnavailableError,
+)
+from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
 from app.domain.negotiation.entities import NegotiationContext, NegotiationTranscript
-from app.application.services.negotiation_log_store import NegotiationLogStore
-from app.application.services.trip_store import TripStore
-from app.infrastructure.storage.sqlite_negotiation_log import SQLiteNegotiationLogStore
-from app.infrastructure.storage.sqlite_trip_store import SQLiteTripStore
+from app.domain.speech.entities import Narration
 from app.infrastructure.config.settings import get_settings
+from app.infrastructure.database.session import SessionLocal
 from app.infrastructure.enrichment.static_factors import StaticCostCarbonProvider
 from app.infrastructure.llm.fallback import DeterministicFallbackExplanationProvider
 from app.infrastructure.llm.groq_client import GroqExplanationProvider
-from app.infrastructure.llm.negotiation_fallback import DeterministicNegotiationFallbackProvider
+from app.infrastructure.llm.negotiation_fallback import (
+    DeterministicNegotiationFallbackProvider,
+)
 from app.infrastructure.llm.negotiation_provider import GroqNegotiationProvider
 from app.infrastructure.preference.sqlite_store import SQLitePreferenceStore
 from app.infrastructure.routing.cached_fallback import CachedFallbackRoutingProvider
 from app.infrastructure.routing.google_maps.client import GoogleMapsRoutingProvider
 from app.infrastructure.routing.google_maps.traffic import GoogleMapsTrafficSimulator
 from app.infrastructure.speech.elevenlabs_client import ElevenLabsSpeechProvider
+from app.infrastructure.storage.sqlite_negotiation_log import SQLiteNegotiationLogStore
+from app.infrastructure.storage.sqlite_trip_store import SQLiteTripStore
 
 logger = logging.getLogger(__name__)
 
@@ -102,17 +106,15 @@ def get_enrichment_provider() -> StaticCostCarbonProvider:
 
 @lru_cache(maxsize=1)
 def get_trip_store() -> TripStore:
-    return SQLiteTripStore(get_settings().preference_db_path)
-
+    return SQLiteTripStore(SessionLocal)
 
 @lru_cache(maxsize=1)
 def get_preference_store() -> SQLitePreferenceStore:
     return SQLitePreferenceStore(get_settings().preference_db_path)
 
-
 @lru_cache(maxsize=1)
 def get_negotiation_log_store() -> NegotiationLogStore:
-    return SQLiteNegotiationLogStore(get_settings().preference_db_path)
+    return SQLiteNegotiationLogStore(SessionLocal)
 
 
 @lru_cache(maxsize=1)
@@ -160,7 +162,12 @@ def get_narrate_text_use_case() -> NarrateTextUseCase:
 @lru_cache(maxsize=1)
 def get_impact_store():
     from app.infrastructure.storage.impact_store import SQLiteImpactStore
-    return SQLiteImpactStore(get_settings().preference_db_path)
+    return SQLiteImpactStore(SessionLocal)
+
+@lru_cache(maxsize=1)
+def get_user_store():
+    from app.infrastructure.storage.user_store import SQLiteUserStore
+    return SQLiteUserStore(SessionLocal)
 
 
 @lru_cache(maxsize=1)
@@ -199,7 +206,9 @@ def get_negotiate_journey_use_case() -> NegotiateJourneyUseCase:
 
 @lru_cache(maxsize=1)
 def get_traveler_negotiation_provider():
-    from app.infrastructure.llm.traveler_negotiation import GroqTravelerNegotiationProvider
+    from app.infrastructure.llm.traveler_negotiation import (
+        GroqTravelerNegotiationProvider,
+    )
     return GroqTravelerNegotiationProvider(get_settings())
 
 

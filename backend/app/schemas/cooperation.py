@@ -1,5 +1,6 @@
+
 from pydantic import BaseModel
-from typing import List, Optional, Tuple
+
 
 class CooperationCandidateDTO(BaseModel):
     commuter_id: str
@@ -12,14 +13,14 @@ class CooperationCandidateDTO(BaseModel):
     
     meeting_point: list[float]
     meeting_point_label: str
-    split_point: Optional[list[float]] = None
-    split_point_label: Optional[str] = None
+    split_point: list[float] | None = None
+    split_point_label: str | None = None
     
-    relay_hub: Optional[list[float]] = None
-    relay_hub_label: Optional[str] = None
-    relay_last_mile_mode: Optional[str] = None
-    relay_last_mile_distance_m: Optional[int] = None
-    relay_last_mile_time_min: Optional[float] = None
+    relay_hub: list[float] | None = None
+    relay_hub_label: str | None = None
+    relay_last_mile_mode: str | None = None
+    relay_last_mile_distance_m: int | None = None
+    relay_last_mile_time_min: float | None = None
     
     estimated_detour_min: float
     estimated_walk_m: float
@@ -37,5 +38,5 @@ class TravelerNegotiationDTO(BaseModel):
     deal_reached: bool
 
 class CooperationResponseDTO(BaseModel):
-    candidates: List[CooperationCandidateDTO]
-    negotiation: Optional[TravelerNegotiationDTO] = None
+    candidates: list[CooperationCandidateDTO]
+    negotiation: TravelerNegotiationDTO | None = None

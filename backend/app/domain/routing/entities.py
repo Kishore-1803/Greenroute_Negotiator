@@ -20,3 +20,5 @@ class RouteMetrics:
     # was served instead -- always disclosed via ModeMetrics.routing_source downstream, never
     # silently presented as live.
     source: str = "live"  # "live" | "cache"
+    stops: list[tuple[float, float]] | None = None
+    traffic_segments: list[dict] | None = None

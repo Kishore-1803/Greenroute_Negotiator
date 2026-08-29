@@ -12,15 +12,19 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from app.application.services.trip_store import TripStore
 from app.domain.common.errors import ValidationError
 from app.domain.decision.entities import TRACKED_MODES, Trip
 from app.domain.decision.utility import compute_utility_scores
 from app.domain.enrichment.interfaces import CostCarbonProvider
-from app.domain.negotiation.adjustments import AGENT_ROLES, AdjustmentOutcome, apply_agent_adjustments
+from app.domain.negotiation.adjustments import (
+    AGENT_ROLES,
+    AdjustmentOutcome,
+    apply_agent_adjustments,
+)
 from app.domain.preference.entities import STATED_PRIORITIES, UserPreference
 from app.domain.preference.interfaces import PreferenceStore
 from app.domain.routing.interfaces import RoutingProvider
-from app.application.services.trip_store import TripStore
 
 
 @dataclass(frozen=True)
@@ -182,13 +186,13 @@ class EvaluateBaselineUseCase:
 
     @staticmethod
     def _apply_cooperation_savings(
-        metrics: dict[str, "object"],
+        metrics: dict[str, object],
         origin: tuple[float, float],
         destination: tuple[float, float],
         willing_to_carpool: bool,
     ) -> dict:
-        from app.infrastructure.cooperation.commuter_pool import COIMBATORE_COMMUTERS
         from app.domain.cooperation.overlap import compatibility
+        from app.infrastructure.cooperation.commuter_pool import COIMBATORE_COMMUTERS
 
         car_m = metrics.get("car")
         if not (
@@ -228,5 +232,7 @@ class EvaluateBaselineUseCase:
             routing_source=car_m.routing_source,
             routing_disclosure=(car_m.routing_disclosure or "") + " (Includes Co-op Savings)",
             route_geometry=car_m.route_geometry,
+            stops=getattr(car_m, "stops", None),
+            traffic_segments=getattr(car_m, "traffic_segments", None),
         )
         return {mode: (adjusted_car if mode == "car" else m) for mode, m in metrics.items()}

@@ -8,9 +8,11 @@ Avoids tool-calling 400 schema mismatches on Groq endpoints.
 import json
 import logging
 import re
+
 from groq import AsyncGroq
-from app.domain.cooperation.entities import CooperationCandidate
+
 from app.application.use_cases.find_cooperation import TravelerNegotiationResult
+from app.domain.cooperation.entities import CooperationCandidate
 from app.infrastructure.config.settings import Settings
 
 logger = logging.getLogger(__name__)

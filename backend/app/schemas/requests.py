@@ -16,7 +16,7 @@ class BaselineRequest(BaseModel):
     current_mode: str | None = Field(
         default=None,
         description=(
-            'One of "car", "two_wheeler", "cycling". OPTIONAL: a brand-new trip (Master Plan '
+            'One of "car", "two_wheeler", "cycling", "bus", "metro". OPTIONAL: a brand-new trip (Master Plan '
             "primary flow) has no current mode yet -- omit it and the response's best_mode is "
             "the recommendation. Only meaningful once you go on to use the advanced condition-"
             "change/SWITCH-STAY flow, which needs a mode to evaluate switching away from."
@@ -59,10 +59,24 @@ class BaselineRequest(BaseModel):
 
 
 class SelectionRequest(BaseModel):
-    selected_mode: str = Field(description='One of "car", "two_wheeler", "cycling" -- the mode the user actually picked')
+    selected_mode: str = Field(description='One of "car", "two_wheeler", "cycling", "bus", "metro" -- the mode the user actually picked')
     cooperation_used: bool = Field(
         default=False, description="Whether the user chose to cooperate via a shared ride or relay"
     )
+    origin_name: str | None = Field(default=None, description="Human readable name of the origin")
+    destination_name: str | None = Field(default=None, description="Human readable name of the destination")
+    duration_min: float | None = Field(default=None, description="Duration of the trip in minutes")
+
+class SignUpRequest(BaseModel):
+    identifier: str
+    password: str
+    name: str
+    location: str | None = "Chennai, TN"
+    personality_tag: str | None = "Eco-Smart Daily Commuter"
+
+class LoginRequest(BaseModel):
+    identifier: str
+    password: str
 
 
 class ExplanationRequest(BaseModel):

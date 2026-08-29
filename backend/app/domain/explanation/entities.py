@@ -9,7 +9,7 @@ LLM could use to compute a new number, by construction.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 # The small, finite objection categories this system supports (Part I). Anything else is
 # handled as "unsupported constraint" -- the LLM must say so, never pretend to incorporate it.

@@ -19,24 +19,28 @@ application use case) and does NOT decide whether to fall back (the use case's j
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 
 from groq import AsyncGroq
 
 from app.domain.common.errors import NegotiationProviderFailureError
-from app.domain.negotiation.entities import AGENT_ROLES, AgentArgument, CoordinatorNarration, NegotiationContext, NegotiationTranscript
+from app.domain.negotiation.entities import (
+    AgentArgument,
+    CoordinatorNarration,
+    NegotiationContext,
+    NegotiationTranscript,
+)
 from app.infrastructure.config.settings import Settings
 from app.infrastructure.llm.negotiation_prompts import (
-    panel_tool_schema,
+    coordinator_system_prompt,
+    coordinator_tool_schema,
+    coordinator_user_prompt,
     panel_round_1_system_prompt,
     panel_round_1_user_prompt,
     panel_round_2_system_prompt,
     panel_round_2_user_prompt,
-    coordinator_system_prompt,
-    coordinator_tool_schema,
-    coordinator_user_prompt,
+    panel_tool_schema,
 )
 
 logger = logging.getLogger(__name__)

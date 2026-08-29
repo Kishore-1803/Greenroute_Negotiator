@@ -23,8 +23,9 @@ from app.application.use_cases.explain_decision import ExplainDecisionUseCase
 from app.application.use_cases.find_cooperation import FindCooperationUseCase
 from app.application.use_cases.record_selection import RecordSelectionUseCase
 from app.application.use_cases.run_negotiation import RunNegotiationUseCase
-from app.application.use_cases.trigger_condition_change import TriggerConditionChangeUseCase
-from app.schemas.cooperation import CooperationResponseDTO
+from app.application.use_cases.trigger_condition_change import (
+    TriggerConditionChangeUseCase,
+)
 from app.schemas.common import (
     AgentArgumentDTO,
     CoordinatorNarrationDTO,
@@ -34,6 +35,7 @@ from app.schemas.common import (
     UserPreferenceDTO,
     UtilityScoreDTO,
 )
+from app.schemas.cooperation import CooperationResponseDTO
 from app.schemas.requests import BaselineRequest, ExplanationRequest, SelectionRequest
 from app.schemas.responses import (
     BaselineResponse,

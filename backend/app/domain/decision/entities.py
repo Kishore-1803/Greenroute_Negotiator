@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from app.domain.decision.value_objects import DecisionDelta, GateCheck, UtilityScore
 
-TRACKED_MODES = ("car", "two_wheeler", "cycling")
+TRACKED_MODES = ("car", "two_wheeler", "cycling", "bus", "metro")
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,8 @@ class ModeMetrics:
     routing_source: str  # "osrm-live" | "osrm-cache" | "unavailable"
     routing_disclosure: str | None = None
     route_geometry: dict | None = None  # raw OSRM GeoJSON LineString, render-only
+    stops: list[tuple[float, float]] | None = None # List of transit stops (lon, lat)
+    traffic_segments: list[dict] | None = None # List of segment traffic dicts
 
 
 @dataclass(frozen=True)

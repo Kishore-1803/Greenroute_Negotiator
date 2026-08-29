@@ -11,13 +11,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.application.services.trip_store import TripStore
 from app.domain.decision.entities import ConditionChange, Trip
 from app.domain.decision.switch_policy import evaluate_switch
 from app.domain.decision.utility import compute_utility_scores
 from app.domain.enrichment.interfaces import CostCarbonProvider
 from app.domain.negotiation.adjustments import AGENT_ROLES, apply_agent_adjustments
 from app.domain.routing.interfaces import ConditionChangeSimulator
-from app.application.services.trip_store import TripStore
 
 
 @dataclass(frozen=True)

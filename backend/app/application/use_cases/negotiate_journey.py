@@ -16,9 +16,12 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from app.application.services.negotiation_log_store import NegotiationLogRecord, NegotiationLogStore
+from app.application.services.negotiation_log_store import (
+    NegotiationLogRecord,
+    NegotiationLogStore,
+)
 from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
 from app.application.use_cases.run_negotiation import RunNegotiationUseCase
 from app.domain.decision.entities import ModeMetrics, Trip
@@ -97,7 +100,7 @@ class NegotiateJourneyUseCase:
                 coordinator_json=json.dumps(asdict(negotiation.transcript.coordinator)),
                 negotiation_provider=negotiation.transcript.coordinator.provider,
                 weights_used_json=json.dumps(trip.weights_used),
-                created_at=datetime.now(timezone.utc).isoformat(),
+                created_at=datetime.now(UTC).isoformat(),
             )
         )
 

@@ -8,8 +8,8 @@ Uses standard httpx async client.
 from __future__ import annotations
 
 import logging
+
 import httpx
-from typing import Any, Union
 
 from app.domain.common.errors import RouteNotFoundError, RoutingUnavailableError
 from app.domain.routing.entities import RouteMetrics
@@ -133,7 +133,7 @@ class GoogleMapsRoutingProvider:
         lat, lng = float(loc["lat"]), float(loc["lng"])
         return (lng, lat)  # Return standard (lon, lat)
 
-    async def resolve_location(self, loc_input: Union[str, tuple[float, float]]) -> tuple[float, float]:
+    async def resolve_location(self, loc_input: str | tuple[float, float]) -> tuple[float, float]:
         """Resolves location input whether given as coordinates or raw text."""
         if isinstance(loc_input, (tuple, list)) and len(loc_input) == 2:
             return normalize_coordinates((float(loc_input[0]), float(loc_input[1])))

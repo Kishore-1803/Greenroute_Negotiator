@@ -3,7 +3,7 @@ domain/cooperation/entities.py
 """
 
 from dataclasses import dataclass
-from typing import Optional
+
 
 @dataclass(frozen=True)
 class CooperationCandidate:
@@ -18,15 +18,15 @@ class CooperationCandidate:
     # Points
     meeting_point: tuple[float, float]
     meeting_point_label: str
-    split_point: Optional[tuple[float, float]]
-    split_point_label: Optional[str]
+    split_point: tuple[float, float] | None
+    split_point_label: str | None
     
     # Relay-specific
-    relay_hub: Optional[tuple[float, float]]
-    relay_hub_label: Optional[str]
-    relay_last_mile_mode: Optional[str]     # "walk" | "auto"
-    relay_last_mile_distance_m: Optional[int]
-    relay_last_mile_time_min: Optional[float]
+    relay_hub: tuple[float, float] | None
+    relay_hub_label: str | None
+    relay_last_mile_mode: str | None     # "walk" | "auto"
+    relay_last_mile_distance_m: int | None
+    relay_last_mile_time_min: float | None
     
     # Impact estimates
     estimated_detour_min: float

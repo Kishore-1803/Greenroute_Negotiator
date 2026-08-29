@@ -4,6 +4,7 @@ infrastructure/cooperation/commuter_pool.py
 
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class SimulatedCommuter:
     id: str
