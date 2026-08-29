@@ -122,6 +122,12 @@ export const BaselineResponseSchema = z.object({
   modes: z.array(ModeMetricsDTOSchema),
   raw_modes: z.array(ModeMetricsDTOSchema).default([]),
   adjustments: AdjustmentOutcomeSchema.nullable().optional(),
+  weather: z.object({
+    temp_c: z.number(),
+    description: z.string(),
+    precip_mm: z.number(),
+    is_raining: z.boolean(),
+  }).nullable().optional(),
   aqi: z.number().nullable().optional(),
   utilities: z.record(z.string(), UtilityScoreDTOSchema),
   excluded: z.record(z.string(), z.string()),
@@ -141,7 +147,7 @@ export const SelectionResponseSchema = z.object({
 export type SelectionResponse = z.infer<typeof SelectionResponseSchema>;
 
 export const AgentArgumentDTOSchema = z.object({
-  agent: z.enum(['speed', 'cost', 'carbon']),
+  agent: z.enum(['speed', 'cost', 'carbon', 'weather']),
   round: z.number(),
   mode_advocated: z.string(),
   message: z.string(),

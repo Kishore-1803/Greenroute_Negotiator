@@ -46,6 +46,7 @@ def _build_context(trip: Trip) -> NegotiationContext:
         },
         computed_winner=computed_winner,
         weights_used=trip.weights_used,
+        weather=trip.weather,
     )
 
 

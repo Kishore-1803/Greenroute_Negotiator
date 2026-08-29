@@ -87,3 +87,4 @@ class Trip:
     raw_metrics: dict[str, ModeMetrics] = field(default_factory=dict)
     adjustments: dict | None = None
     aqi: float | None = None
+    weather: dict | None = None

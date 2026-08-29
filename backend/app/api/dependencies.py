@@ -163,9 +163,15 @@ def get_impact_store():
     return SQLiteImpactStore(get_settings().preference_db_path)
 
 
+@lru_cache(maxsize=1)
+def get_weather_provider():
+    from app.infrastructure.weather.weatherstack_client import WeatherProvider
+    return WeatherProvider(get_settings().weatherstack_api_key)
+
+
 def get_evaluate_baseline_use_case() -> EvaluateBaselineUseCase:
     return EvaluateBaselineUseCase(
-        get_routing_provider(), get_enrichment_provider(), get_trip_store(), get_preference_store()
+        get_routing_provider(), get_enrichment_provider(), get_trip_store(), get_preference_store(), get_weather_provider()
     )
 
 

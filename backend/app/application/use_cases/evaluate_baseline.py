@@ -39,11 +39,13 @@ class EvaluateBaselineUseCase:
         enrichment: CostCarbonProvider,
         trip_store: TripStore,
         preference_store: PreferenceStore,
+        weather_provider=None,
     ):
         self._routing = routing
         self._enrichment = enrichment
         self._trip_store = trip_store
         self._preference_store = preference_store
+        self._weather_provider = weather_provider
 
     async def execute(
         self,
@@ -102,6 +104,33 @@ class EvaluateBaselineUseCase:
         routes = await self._routing.route_all_modes(origin, destination)
         raw_metrics = {m.mode: m for m in (self._enrichment.enrich(route) for route in routes.values())}
 
+        weather = None
+        if self._weather_provider:
+            weather_cond = await self._weather_provider.get_current_weather(origin)
+            if weather_cond:
+                weather = {
+                    "temp_c": weather_cond.temp_c,
+                    "description": weather_cond.description,
+                    "precip_mm": weather_cond.precip_mm,
+                    "is_raining": weather_cond.is_raining,
+                }
+            
+            car_m = raw_metrics.get("car")
+            if car_m and car_m.distance_km and car_m.distance_km > 50.0:
+                dest_cond = await self._weather_provider.get_current_weather(destination)
+                if dest_cond:
+                    if not weather:
+                        weather = {
+                            "temp_c": dest_cond.temp_c,
+                            "description": dest_cond.description,
+                            "precip_mm": dest_cond.precip_mm,
+                            "is_raining": dest_cond.is_raining,
+                        }
+                    else:
+                        weather["dest_temp_c"] = dest_cond.temp_c
+                        weather["dest_description"] = dest_cond.description
+                        weather["is_raining"] = weather["is_raining"] or dest_cond.is_raining
+
         # The specialist agents' MATERIAL step (Master Plan Section 3, made load-bearing): each
         # active agent proposes a bounded, reasoned adjustment against its own channel, the
         # proposals are summed per channel and clamped, and the utility formula then runs on
@@ -109,7 +138,7 @@ class EvaluateBaselineUseCase:
         # changes the scores, and can change the recommendation. See adjustments.py for why
         # these deltas are computed deterministically here rather than chosen by an LLM.
         adjusted_metrics, adjustment_outcome = apply_agent_adjustments(
-            raw_metrics, aqi=aqi, active_agents=active_agents
+            raw_metrics, aqi=aqi, weather=weather, active_agents=active_agents
         )
 
         # --- Cooperation potential (carpool / relay) ---
@@ -139,6 +168,7 @@ class EvaluateBaselineUseCase:
             raw_metrics=raw_metrics,
             adjustments=adjustment_outcome.as_dict(),
             aqi=aqi,
+            weather=weather,
         )
         self._trip_store.save(trip)
 

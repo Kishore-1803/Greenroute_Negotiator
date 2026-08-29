@@ -14,8 +14,8 @@ from __future__ import annotations
 
 from app.domain.negotiation.entities import AGENT_ROLES, AgentArgument, CoordinatorNarration, NegotiationContext, NegotiationTranscript
 
-_METRIC_LABEL = {"speed": "duration_min", "cost": "estimated_cost_inr", "carbon": "estimated_carbon_g"}
-_METRIC_UNIT = {"speed": "min", "cost": "INR", "carbon": "g CO2"}
+_METRIC_LABEL = {"speed": "duration_min", "cost": "estimated_cost_inr", "carbon": "estimated_carbon_g", "weather": "duration_min"}
+_METRIC_UNIT = {"speed": "min", "cost": "INR", "carbon": "g CO2", "weather": "min"}
 
 
 def _metric_value(context: NegotiationContext, mode: str, agent: str) -> float:
@@ -24,6 +24,13 @@ def _metric_value(context: NegotiationContext, mode: str, agent: str) -> float:
 
 def _round_1_message(context: NegotiationContext, agent: str) -> str:
     mode = context.advocate_for(agent)
+    if agent == "weather":
+        temp = context.weather.get("temp_c") if context.weather else ""
+        if context.weather and context.weather.get("is_raining"):
+             return f"Because of the rain ({temp}°C), I strongly advocate for {mode}."
+        else:
+             return f"The weather is clear ({temp}°C), making {mode} a great open-air choice."
+
     value = _metric_value(context, mode, agent)
     return f"{mode} leads on {agent}: {value:g} {_METRIC_UNIT[agent]}, the lowest among the modes considered."
 
@@ -32,18 +39,24 @@ def _round_2_message(context: NegotiationContext, agent: str, others: list[Agent
     mode = context.advocate_for(agent)
     if mode == context.computed_winner:
         stance = "rebut"
-        text = (
-            f"Holding position: {mode} still leads on {agent} at {_metric_value(context, mode, agent):g} "
-            f"{_METRIC_UNIT[agent]}, and it is also the mode the utility formula ultimately selects."
-        )
+        if agent == "weather":
+            text = f"Holding position: given the weather conditions, {mode} is clearly the best mode and it is also what the utility formula selects."
+        else:
+            text = (
+                f"Holding position: {mode} still leads on {agent} at {_metric_value(context, mode, agent):g} "
+                f"{_METRIC_UNIT[agent]}, and it is also the mode the utility formula ultimately selects."
+            )
     else:
         stance = "concede"
-        winner_value = _metric_value(context, context.computed_winner, agent)
-        text = (
-            f"Conceding on the overall pick: {mode} still wins on {agent} alone, but {context.computed_winner} "
-            f"({winner_value:g} {_METRIC_UNIT[agent]} on this metric) comes out ahead once time, cost, and "
-            f"carbon are weighed together."
-        )
+        if agent == "weather":
+            text = f"Conceding on the overall pick: {mode} is my preference for the weather, but {context.computed_winner} comes out ahead once time, cost, and carbon are weighed together."
+        else:
+            winner_value = _metric_value(context, context.computed_winner, agent)
+            text = (
+                f"Conceding on the overall pick: {mode} still wins on {agent} alone, but {context.computed_winner} "
+                f"({winner_value:g} {_METRIC_UNIT[agent]} on this metric) comes out ahead once time, cost, and "
+                f"carbon are weighed together."
+            )
     return stance, text
 
 

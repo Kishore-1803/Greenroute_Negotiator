@@ -31,6 +31,7 @@ class BaselineResponse(BaseModel):
     modes: list[ModeMetricsDTO]
     raw_modes: list[ModeMetricsDTO] = []
     adjustments: dict | None = None
+    weather: dict | None = None
     aqi: float | None = None
     utilities: dict[str, UtilityScoreDTO]
     excluded: dict[str, str]
