@@ -21,88 +21,114 @@ _AGENT_VOICE = {
     "speed": "Speed Agent, who argues for whichever mode gets the traveller there fastest (lowest duration_min).",
     "cost": "Cost Agent, who argues for whichever mode is cheapest (lowest estimated_cost_inr).",
     "carbon": "Carbon Agent, who argues for whichever mode has the lowest emissions (lowest estimated_carbon_g).",
+    "weather": "Weather Agent, who fiercely argues for enclosed modes (like car) during rain/bad weather, and open modes during pleasant weather.",
 }
 
-_SHARED_RULES = """You MUST NOT invent, adjust, or round loosely any number -- every figure you mention must be \
-one of the exact per-mode metrics given to you below. You MUST NOT argue for a mode other than the one named as \
-your position in this turn -- that position is fixed by the actual data, not your opinion. Keep your message to \
+_SHARED_RULES = """For each agent's argument, you MUST NOT invent, adjust, or round loosely any number -- every figure mentioned must be \
+one of the exact per-mode metrics given to you below. Each agent MUST NOT argue for a mode other than the one named as \
+their position in this turn -- their position is fixed by the actual data, not opinion. Keep each message to \
 1-2 sentences."""
 
 
 def _facts_block(context: NegotiationContext) -> dict:
     return {
-        mode: {
-            "duration_min": snap.duration_min,
-            "estimated_cost_inr": snap.estimated_cost_inr,
-            "estimated_carbon_g": snap.estimated_carbon_g,
+        "weather": context.weather,
+        "modes": {
+            mode: {
+                "duration_min": snap.duration_min,
+                "estimated_cost_inr": snap.estimated_cost_inr,
+                "estimated_carbon_g": snap.estimated_carbon_g,
+            }
+            for mode, snap in context.modes.items()
         }
-        for mode, snap in context.modes.items()
     }
 
 
-def agent_tool_schema(round_no: int) -> dict:
-    properties = {
-        # 500, not 300 -- same server-side-validation trap as coordinator_tool_schema's
-        # summary bound below: Groq rejects the entire tool call with a 400 on overrun, so an
-        # over-tight ceiling here costs the real transcript rather than merely trimming it.
-        # Observed: a 317-char Round 2 rebuttal failed against 300. _SHARED_RULES still asks
-        # for 1-2 sentences; this is the hard ceiling behind that request.
+def panel_tool_schema(round_no: int) -> dict:
+    item_props = {
+        "agent": {"type": "string", "enum": ["speed", "cost", "carbon", "weather"]},
         "message": {"type": "string", "maxLength": 500},
     }
-    required = ["message"]
+    item_req = ["agent", "message"]
     if round_no == 2:
-        properties["stance"] = {"type": "string", "enum": ["concede", "rebut"]}
-        required.append("stance")
+        item_props["stance"] = {"type": "string", "enum": ["concede", "rebut"]}
+        item_req.append("stance")
+
     return {
         "type": "function",
         "function": {
-            "name": "submit_argument",
-            "description": "Submit this agent's argument for the current round.",
-            "parameters": {"type": "object", "properties": properties, "required": required},
+            "name": "submit_arguments",
+            "description": "Submit the arguments for all agents in the current round.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "arguments": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": item_props,
+                            "required": item_req,
+                        },
+                        "minItems": 4,
+                        "maxItems": 4,
+                    }
+                },
+                "required": ["arguments"],
+            },
         },
     }
 
 
-def round_1_system_prompt(agent: str) -> str:
+def panel_round_1_system_prompt() -> str:
     return (
-        f"You are the {_AGENT_VOICE[agent]} You are in Round 1 of a 2-round negotiation with two other "
-        f"specialist agents (arguing for the other two metrics) over which transport mode a traveller should "
-        f"take. Make your opening, independent case for your position using only the facts you are given. "
+        f"You are simulating a negotiation panel between 4 specialist agents over which transport mode a traveller should take.\n"
+        f"The 4 agents are:\n"
+        f"- {_AGENT_VOICE['speed']}\n"
+        f"- {_AGENT_VOICE['cost']}\n"
+        f"- {_AGENT_VOICE['carbon']}\n"
+        f"- {_AGENT_VOICE['weather']}\n\n"
+        f"This is Round 1. Generate the opening, independent argument for each agent.\n"
         f"{_SHARED_RULES}"
     )
 
 
-def round_1_user_prompt(context: NegotiationContext, agent: str) -> str:
-    position = context.advocate_for(agent)
+def panel_round_1_user_prompt(context: NegotiationContext) -> str:
+    positions = {agent: context.advocate_for(agent) for agent in _AGENT_VOICE.keys()}
     return (
         f"Per-mode facts: {_facts_block(context)}\n\n"
-        f"Your position this round is: advocate for {position!r}. Make your opening argument for it."
+        f"The data-grounded positions for this round are: {positions}\n\n"
+        f"Generate the opening arguments for all 4 agents based on their assigned positions."
     )
 
 
-def round_2_system_prompt(agent: str) -> str:
+def panel_round_2_system_prompt() -> str:
     return (
-        f"You are the {_AGENT_VOICE[agent]} This is Round 2. You have now seen the other two agents' Round 1 "
-        f"arguments below. Either concede (if their case is stronger on the shared facts) or rebut with a "
-        f"data-grounded counter-argument that directly engages with what they said -- do not just repeat your "
-        f"Round 1 point unchanged. {_SHARED_RULES}"
+        f"You are simulating a negotiation panel between 4 specialist agents over which transport mode a traveller should take.\n"
+        f"The 4 agents are:\n"
+        f"- {_AGENT_VOICE['speed']}\n"
+        f"- {_AGENT_VOICE['cost']}\n"
+        f"- {_AGENT_VOICE['carbon']}\n"
+        f"- {_AGENT_VOICE['weather']}\n\n"
+        f"This is Round 2. You will be given the Round 1 arguments of all agents. Each agent must now either concede "
+        f"(if another case is stronger) or rebut with a data-grounded counter-argument.\n"
+        f"{_SHARED_RULES}"
     )
 
 
-def round_2_user_prompt(context: NegotiationContext, agent: str, other_round_1: list[AgentArgument]) -> str:
-    position = context.advocate_for(agent)
-    others = "\n".join(f"- {a.agent} agent (advocating {a.mode_advocated}): \"{a.message}\"" for a in other_round_1)
+def panel_round_2_user_prompt(context: NegotiationContext, round_1: list[AgentArgument]) -> str:
+    positions = {agent: context.advocate_for(agent) for agent in _AGENT_VOICE.keys()}
+    r1_text = "\n".join(f"- {a.agent} agent (advocating {a.mode_advocated}): \"{a.message}\"" for a in round_1)
     return (
         f"Per-mode facts: {_facts_block(context)}\n\n"
-        f"Your position is still: advocate for {position!r}.\n\n"
-        f"The other agents' Round 1 arguments were:\n{others}\n\n"
-        f"Respond to them directly -- concede or rebut."
+        f"The data-grounded positions for this round remain: {positions}\n\n"
+        f"The Round 1 arguments were:\n{r1_text}\n\n"
+        f"Generate the Round 2 responses (concede or rebut) for all 4 agents."
     )
 
 
 def coordinator_system_prompt() -> str:
     return """You are the Coordinator for GreenRoute's mode-negotiation panel. A deterministic utility \
-engine has ALREADY computed the winning mode from the three specialist agents' underlying metrics -- your ONLY \
+engine has ALREADY computed the winning mode from the specialist agents' underlying metrics -- your ONLY \
 job is to narrate that outcome given the negotiation transcript, in 2-3 sentences. You MUST NOT pick, imply, or \
 hint at a different winner than the one given to you as `computed_winner`, no matter how compelling any agent's \
 argument sounded. The "winner" field in your output must exactly echo `computed_winner`."""

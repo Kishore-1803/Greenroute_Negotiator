@@ -43,6 +43,7 @@ class GroqExplanationProvider:
                 tools=[TOOL_SCHEMA],
                 tool_choice={"type": "function", "function": {"name": "submit_explanation"}},
                 temperature=0.1,
+                max_tokens=2048,
             )
             args = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
         except Exception as exc:  # Groq/network/parsing failures all become one domain error;
