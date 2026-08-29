@@ -23,6 +23,8 @@ from app.domain.common.errors import (
     NegotiationProviderFailureError,
     RouteNotFoundError,
     RoutingUnavailableError,
+    SpeechProviderFailureError,
+    SpeechUnavailableError,
     TripNotFoundError,
     ValidationError,
 )
@@ -43,6 +45,10 @@ _STATUS_BY_ERROR = {
     # internal catch is ever removed, an unhandled NegotiationProviderFailureError should surface
     # as a distinguishable 502 (bad upstream dependency), not an opaque generic 500.
     NegotiationProviderFailureError: 502,
+    # Voice narration is optional. "not configured" is a 503 (feature off, try later /
+    # don't retry blindly); an actual ElevenLabs failure is a 502 (bad upstream).
+    SpeechUnavailableError: 503,
+    SpeechProviderFailureError: 502,
 }
 
 

@@ -107,7 +107,7 @@ CARBON_FACTORS: dict[str, CarbonFactor] = {
     ),
     "cycling": CarbonFactor(
         mode="cycling",
-        factor_gco2_per_km=130.0,
+        factor_gco2_per_km=0.0,
         unit="gCO2e/km",
         source=(
             "Mizdrak et al. 2020, Scientific Reports (Nature), 'Fuelling walking and cycling: "
@@ -194,9 +194,11 @@ class StaticCostCarbonProvider:
 
         cost = round(route.distance_km * COST_FACTORS[route.mode].cost_per_km_inr, 2)
         carbon = round(route.distance_km * CARBON_FACTORS[route.mode].factor_gco2_per_km, 2)
-        routing_source = "osrm-cache" if route.source == "cache" else "osrm-live"
+        routing_source = "cached-fallback" if route.source == "cache" else "google-maps"
+        if route.source == "cycling-estimated":
+            routing_source = "google-maps (estimated duration)"
         if route.source == "cache":
-            cache_note = "Live OSRM was unreachable -- serving a pre-recorded route for this exact trip."
+            cache_note = "Live Google Maps was unreachable -- serving a pre-recorded route for this exact trip."
             disclosure = f"{disclosure} {cache_note}" if disclosure else cache_note
         return ModeMetrics(
             mode=route.mode, distance_km=route.distance_km, duration_min=route.duration_min,

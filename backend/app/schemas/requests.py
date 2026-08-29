@@ -41,10 +41,28 @@ class BaselineRequest(BaseModel):
             "differs from the recommendation moves the learned vector."
         ),
     )
+    aqi: float | None = Field(
+        default=None,
+        ge=0,
+        description=(
+            "Optional ambient Air Quality Index at trip time. Feeds the Carbon specialist's "
+            "exposure adjustment (higher AQI penalises modes with greater outdoor exposure and "
+            "ventilation rate). Omit it and the carbon channel receives no AQI component at all "
+            "-- no air-quality figure is ever invented server-side."
+        ),
+    )
+    willing_to_carpool: bool = Field(
+        default=True,
+        description="Whether the user is willing and able to carpool/share their ride. When "
+        "true and a compatible commuter exists, the Car mode is discounted before scoring.",
+    )
 
 
 class SelectionRequest(BaseModel):
     selected_mode: str = Field(description='One of "car", "two_wheeler", "cycling" -- the mode the user actually picked')
+    cooperation_used: bool = Field(
+        default=False, description="Whether the user chose to cooperate via a shared ride or relay"
+    )
 
 
 class ExplanationRequest(BaseModel):
@@ -57,4 +75,13 @@ class ExplanationRequest(BaseModel):
     )
     objection_text: str | None = Field(
         default=None, description="Raw user text, only meaningful when objection_category='unsupported_constraint'"
+    )
+
+
+class NarrateRequest(BaseModel):
+    text: str = Field(
+        min_length=1,
+        max_length=1500,
+        description="The text to speak. Normally a Coordinator narration or a grounded "
+        "explanation the backend already produced -- not free-form user input.",
     )

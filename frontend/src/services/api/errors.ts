@@ -9,6 +9,8 @@ export type AppErrorCode =
   | 'ROUTE_ERROR'
   | 'CONDITION_CHANGE_ERROR'
   | 'EXPLANATION_ERROR'
+  | 'SPEECH_UNAVAILABLE'
+  | 'SPEECH_ERROR'
   | 'UNKNOWN_ERROR';
 
 export class AppError extends Error {
@@ -36,6 +38,8 @@ const BACKEND_ERROR_CODE_MAP: Record<string, { code: AppErrorCode; fallbackMessa
   EnrichmentUnavailableError: { code: 'ROUTE_ERROR', fallbackMessage: 'Cost/carbon data is unavailable right now.' },
   DecisionFailureError: { code: 'CONDITION_CHANGE_ERROR', fallbackMessage: 'The decision engine could not produce a result.' },
   ExplanationProviderFailureError: { code: 'EXPLANATION_ERROR', fallbackMessage: 'The explanation service failed.' },
+  SpeechUnavailableError: { code: 'SPEECH_UNAVAILABLE', fallbackMessage: 'Voice narration is not enabled on this server.' },
+  SpeechProviderFailureError: { code: 'SPEECH_ERROR', fallbackMessage: 'Voice narration is temporarily unavailable.' },
 };
 
 /** Converts a non-2xx fetch Response into a typed AppError, per the backend's ErrorEnvelope

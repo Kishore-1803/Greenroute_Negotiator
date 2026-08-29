@@ -79,10 +79,50 @@ export const UserPreferenceDTOSchema = z.object({
 });
 export type UserPreferenceDTO = z.infer<typeof UserPreferenceDTOSchema>;
 
+export const AGENT_ROLES = ['speed', 'cost', 'carbon'] as const;
+
+/** One specialist agent's Round 1 proposal against its own channel (speed adjusts duration,
+ * cost adjusts cost, carbon adjusts carbon). Mirrors
+ * domain/negotiation/adjustments.py::ModeAdjustment. */
+export const AdjustmentProposalSchema = z.object({
+  agent: z.enum(AGENT_ROLES),
+  mode: z.string(),
+  channel: z.string(),
+  delta: z.number(),
+  reason: z.string(),
+});
+export type AdjustmentProposal = z.infer<typeof AdjustmentProposalSchema>;
+
+/** The Round 2 outcome for one (mode, channel): proposals summed, then clamped. Mirrors
+ * domain/negotiation/adjustments.py::ResolvedAdjustment. */
+export const ResolvedAdjustmentSchema = z.object({
+  mode: z.string(),
+  channel: z.string(),
+  proposed_delta: z.number(),
+  applied_delta: z.number(),
+  was_clamped: z.boolean(),
+  baseline_value: z.number(),
+  adjusted_value: z.number(),
+});
+export type ResolvedAdjustment = z.infer<typeof ResolvedAdjustmentSchema>;
+
+export const AdjustmentOutcomeSchema = z.object({
+  agents_active: z.array(z.string()),
+  proposals: z.array(AdjustmentProposalSchema),
+  resolved: z.array(ResolvedAdjustmentSchema),
+});
+export type AdjustmentOutcome = z.infer<typeof AdjustmentOutcomeSchema>;
+
 export const BaselineResponseSchema = z.object({
   trip_id: z.string(),
   current_mode: z.string(),
+  // `modes` are the metrics the utility formula actually scored -- i.e. AFTER the
+  // specialist agents' adjustments. `raw_modes` is the untouched routing+enrichment
+  // output; `adjustments` itemises every delta and why. (backend: BaselineResponse)
   modes: z.array(ModeMetricsDTOSchema),
+  raw_modes: z.array(ModeMetricsDTOSchema).default([]),
+  adjustments: AdjustmentOutcomeSchema.nullable().optional(),
+  aqi: z.number().nullable().optional(),
   utilities: z.record(z.string(), UtilityScoreDTOSchema),
   excluded: z.record(z.string(), z.string()),
   best_mode: z.string().nullable(),
@@ -178,11 +218,73 @@ export interface BaselineRequest {
   user_id: string;
   stated_priority?: StatedPriority;
   custom_weights?: CustomWeights;
+  /** Optional ambient Air Quality Index. Feeds the Carbon agent's exposure adjustment;
+   * omitting it means the carbon channel gets no AQI component. */
+  aqi?: number;
+  /** Whether the user is willing to carpool/share a ride. When true and a compatible
+   * commuter exists, the Car mode is discounted before scoring. */
+  willing_to_carpool?: boolean;
 }
 
 export interface SelectionRequest {
   selected_mode: TravelMode;
+  /** Whether the user chose to cooperate via a shared ride or relay. */
+  cooperation_used?: boolean;
 }
+
+// --- Mobility Cooperation (carpool / relay) + Impact Dashboard (backend: schemas/cooperation.py,
+//     infrastructure/storage/impact_store.py) ---
+
+export const CooperationCandidateDTOSchema = z.object({
+  commuter_id: z.string(),
+  commuter_name: z.string(),
+  commuter_mode: z.string(),
+  commuter_origin: z.array(z.number()),
+  commuter_destination: z.array(z.number()),
+  compatibility_score: z.number(),
+  cooperation_type: z.string(),
+  meeting_point: z.array(z.number()),
+  meeting_point_label: z.string(),
+  split_point: z.array(z.number()).nullable(),
+  split_point_label: z.string().nullable(),
+  relay_hub: z.array(z.number()).nullable(),
+  relay_hub_label: z.string().nullable(),
+  relay_last_mile_mode: z.string().nullable(),
+  relay_last_mile_distance_m: z.number().nullable(),
+  relay_last_mile_time_min: z.number().nullable(),
+  estimated_detour_min: z.number(),
+  estimated_walk_m: z.number(),
+  estimated_user_cost_saving_inr: z.number(),
+  estimated_commuter_cost_saving_inr: z.number(),
+  estimated_carbon_saved_g: z.number(),
+  vehicle_trips_prevented: z.number(),
+  cooperation_narrative: z.string(),
+});
+export type CooperationCandidateDTO = z.infer<typeof CooperationCandidateDTOSchema>;
+
+export const TravelerNegotiationDTOSchema = z.object({
+  user_position: z.string(),
+  commuter_position: z.string(),
+  mediator_deal: z.string(),
+  deal_reached: z.boolean(),
+});
+export type TravelerNegotiationDTO = z.infer<typeof TravelerNegotiationDTOSchema>;
+
+export const CooperationResponseSchema = z.object({
+  candidates: z.array(CooperationCandidateDTOSchema),
+  negotiation: TravelerNegotiationDTOSchema.nullable(),
+});
+export type CooperationResponse = z.infer<typeof CooperationResponseSchema>;
+
+export const UserImpactStatsSchema = z.object({
+  total_trips: z.number(),
+  green_choices: z.number(),
+  carbon_saved_g: z.number(),
+  cost_saved_inr: z.number(),
+  vehicle_trips_prevented: z.number(),
+  trees_equivalent: z.number(),
+});
+export type UserImpactStats = z.infer<typeof UserImpactStatsSchema>;
 
 /** Mirrors domain/explanation/entities.py's OBJECTION_CATEGORIES minus 'unsupported_constraint'
  * (that category exists for free-text input, which this UI doesn't collect). */
@@ -200,3 +302,12 @@ export interface ExplanationRequest {
   objection_category?: ObjectionCategory;
   objection_text?: string;
 }
+
+// --- Speech / voice narration (backend/app/api/routers/speech.py) ---
+
+export const SpeechStatusSchema = z.object({
+  enabled: z.boolean(),
+  provider: z.string().nullable(),
+  voice_id: z.string().nullable(),
+});
+export type SpeechStatus = z.infer<typeof SpeechStatusSchema>;

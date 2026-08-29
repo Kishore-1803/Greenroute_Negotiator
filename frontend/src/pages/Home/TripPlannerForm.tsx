@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowRight, Car, Crosshair, IndianRupee, Leaf, MapPin, SlidersHorizontal, Zap } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Car, Crosshair, IndianRupee, Leaf, MapPin, SlidersHorizontal, Wind, Zap } from 'lucide-react';
 import { MOCK_LOCATIONS, type LocationPoint } from '@/lib/mockLocations';
 import { getOrCreateUserId } from '@/lib/userId';
 import type { CustomWeights, StatedPriority } from '@/services/api/types';
@@ -25,6 +25,10 @@ export function TripPlannerForm() {
   const [customWeights, setCustomWeights] = useState<CustomWeights>(DEFAULT_CUSTOM_WEIGHTS);
   const [origin, setOrigin] = useState<LocationPoint | null>(MOCK_LOCATIONS[0]);
   const [destination, setDestination] = useState<LocationPoint | null>(MOCK_LOCATIONS[1]);
+  const [willingToCarpool, setWillingToCarpool] = useState(true);
+  // Optional ambient AQI. Empty = not supplied -> the Carbon agent contributes no exposure
+  // adjustment (the backend never invents an air-quality number).
+  const [aqi, setAqi] = useState('');
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string>();
   const baseline = useBaselineMutation();
@@ -58,6 +62,7 @@ export function TripPlannerForm() {
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!origin || !destination) return;
+    const aqiValue = aqi.trim() === '' ? undefined : Number(aqi);
     baseline.mutate(
       {
         origin_lon: origin.lon,
@@ -68,11 +73,13 @@ export function TripPlannerForm() {
         // has no current mode yet, the recommendation IS the point. best_mode in the response
         // becomes current_mode server-side.
         user_id: userId,
+        willing_to_carpool: willingToCarpool,
         ...(useCustomWeights ? { custom_weights: customWeights } : { stated_priority: priority }),
+        ...(aqiValue != null && Number.isFinite(aqiValue) && aqiValue >= 0 ? { aqi: aqiValue } : {}),
       },
       {
         onSuccess: (data) => {
-          navigate(`/trip/${data.trip_id}`, { state: { baseline: data } });
+          navigate(`/trip/${data.trip_id}`, { state: { baseline: data, willingToCarpool } });
         },
       },
     );
@@ -116,6 +123,25 @@ export function TripPlannerForm() {
             placeholder="Destination"
           />
         </div>
+
+        {/* Carpool Willingness Toggle */}
+        <label className="flex items-center gap-2 px-1 cursor-pointer group mt-1 mb-1">
+          <div className={cn(
+            "w-4 h-4 rounded-md border flex items-center justify-center transition-colors",
+            willingToCarpool ? "bg-[#8EE074] border-[#8EE074]" : "border-white/40 bg-white/5 group-hover:border-white/60"
+          )}>
+            {willingToCarpool && <svg viewBox="0 0 14 14" fill="none" className="w-3 h-3 text-[#1C2C16]"><path d="M3 7.5L5.5 10L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </div>
+          <input
+            type="checkbox"
+            className="hidden"
+            checked={willingToCarpool}
+            onChange={(e) => setWillingToCarpool(e.target.checked)}
+          />
+          <span className="text-[10px] sm:text-xs font-medium text-white/80 group-hover:text-white transition-colors">
+            Willing to carpool / have empty seats
+          </span>
+        </label>
 
         {/* Stated Priority -- Preference Memory's cold-start signal for a first-time user_id --
             or, toggled on, the Master Plan's continuous PreferenceSlider for custom weights. */}
@@ -161,6 +187,31 @@ export function TripPlannerForm() {
                 );
               })}
             </div>
+          )}
+        </div>
+
+        {/* Optional ambient AQI -- feeds the Carbon agent's exposure adjustment. Left blank,
+            that agent contributes nothing (the backend never invents an air-quality value). */}
+        <div className="glass-input-box flex items-center gap-2.5 rounded-xl px-3 py-2 hover:border-white/35 focus-within:border-[#8EE074]/70 transition-all">
+          <Wind className="h-4 w-4 text-white/70 shrink-0" />
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={500}
+            value={aqi}
+            onChange={(e) => setAqi(e.target.value)}
+            placeholder="Air quality (AQI) — optional"
+            className="w-full bg-transparent text-xs text-white placeholder:text-white/40 focus:outline-none"
+          />
+          {aqi.trim() !== '' && (
+            <button
+              type="button"
+              onClick={() => setAqi('')}
+              className="text-[10px] font-semibold text-white/40 hover:text-white/70 shrink-0 cursor-pointer"
+            >
+              clear
+            </button>
           )}
         </div>
 

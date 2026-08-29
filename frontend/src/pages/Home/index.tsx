@@ -154,7 +154,7 @@ export function HomePage() {
             <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-white/85 mt-1">
               <div className="flex items-center gap-1">
                 <Car className="h-3 w-3 text-white/70" />
-                <span>~2 km, 3 modes</span>
+                <span>~{FIXED_TRIP.approxDistanceKm} km, 3 modes</span>
               </div>
               <div className="flex items-center gap-1 text-[#8EE074]">
                 <Leaf className="h-3 w-3" />

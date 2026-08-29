@@ -6,16 +6,20 @@ what's next.
 
 ## Where things stand
 
+`main` now integrates two parallel streams off the same base commit (`55b6a9f`):
+**Kishore's** Google Maps + Gemini routing pivot, Mobility Cooperation (carpool/relay), and
+User Impact Dashboard; and **Vishal's** load-bearing specialist agents + optional AQI, one-shot
+`/api/v1/network/negotiate`, and ElevenLabs voice. Routing is wired to **Google Maps**; the
+OSRM adapter stays in the tree, unwired.
+
 The primary flow works end-to-end and is covered by tests: a new trip gets routed on all three
-modes, scored, negotiated over by the agent panel, explained, and the user's actual choice
-feeds back into Preference Memory for next time. The advanced traffic-surge/SWITCH-STAY flow
-builds on the same engine and also works. Both are exercised by real HTTP-level tests, not just
-unit tests of the underlying math — see `backend/tests/api/test_http_flows.py` for the full
-loop test.
+modes, agent-adjusted (and carpool-discounted if a match exists), scored, negotiated over,
+explained, and the user's choice feeds Preference Memory + the Impact Dashboard. The advanced
+traffic-surge/SWITCH-STAY flow builds on the same engine.
 
 ```
-Backend:   64/64 tests passing (pytest tests/)
-Frontend:  clean build (tsc -b && vite build, 0 errors)
+Backend:   95/95 tests passing (pytest tests/)
+Frontend:  clean build (tsc -b && vite build, 0 errors) + 5/5 vitest contract tests
 ```
 
 ## What's done
@@ -54,14 +58,18 @@ Frontend:  clean build (tsc -b && vite build, 0 errors)
 - Zod schemas mirroring the backend's Pydantic DTOs field-for-field, so a backend contract drift
   fails loudly at the API boundary instead of silently rendering `undefined`.
 - Clean TypeScript build with no `any`-typed escape hatches in the API layer.
+- An expandable "Agent Adjustments" trail in the Trip Workspace (raw -> adjusted per
+  mode/channel, with each agent's reason and any clamp), an optional AQI input on both
+  planner forms, and a "Listen" button (ElevenLabs voice) on the Coordinator summary and
+  the explanation -- shown only when the server reports speech is configured.
 
 ## Known gaps / what's next
 
 Roughly in priority order:
 
-1. **No frontend automated tests.** `vitest` + Testing Library are installed but unused — no
-   `*.test.tsx` files, no `npm test` script. Worth adding component tests for
-   `DecisionWorkspacePanel` and the trip hooks before this grows much further.
+1. **Thin frontend test coverage.** `npm test` now runs one vitest file
+   (`services/api/types.contract.test.ts`, the backend-contract guard). Component tests for
+   `DecisionWorkspacePanel` / `AgentAdjustmentTrail` and the trip hooks are still worth adding.
 2. **Trips aren't persisted.** `InMemoryTripStore` loses all trip state on backend restart; only
    Preference Memory (SQLite) survives. Fine for a demo, not for anything long-running.
 3. **OSRM cached-fallback covers one fixed corridor**, not multiple routes — an outage during a
@@ -75,6 +83,38 @@ Roughly in priority order:
    to be a straightforward GitHub Actions addition (`pytest` + `npm run build`).
 
 ## Recently resolved
+
+- **Merged Kishore's `origin/main`.** Both streams started from `55b6a9f`. Resolved keeping
+  *both* sides: Google Maps stays the wired router; the OSRM adapter is kept unwired (swap in
+  `api/dependencies.py`). `evaluate_baseline.py` runs the specialist-agent adjustments *then*
+  the carpool discount before scoring. `dependencies.py` / `main.py` / `trips.py` /
+  `requests.py` / `types.ts` / `DecisionWorkspacePanel.tsx` / `TripWorkspace/index.tsx` carry
+  both feature sets. Two base tests updated for the friend's `cycling` carbon `130 → 0`. The
+  committed `greenroute_preferences.db` was un-tracked (it's gitignored).
+
+- **Agent adjustments are now visible in the UI.** `BaselineResponse` / `/network/negotiate`
+  carry `raw_modes`, `adjustments` (every proposal + reason + clamp), and `aqi`; the Trip
+  Workspace renders an expandable "Agent Adjustments" trail (raw -> adjusted per mode/channel,
+  greyed-out agents, AQI + clamp badges), and both planner forms take an optional AQI input.
+  Frontend Zod schemas were extended to match, guarded by `types.contract.test.ts` (the first
+  frontend test in the repo -- `npm test` now runs vitest).
+- **Voice narration (ElevenLabs).** New `POST /api/v1/speech/narrate` (text -> MP3, LRU-cached)
+  and `GET /api/v1/speech/status`. A `SpeechProvider` port + `ElevenLabsSpeechProvider` adapter
+  behind the same "unconfigured -> feature off, not a crash" pattern as the Groq providers.
+  The frontend shows a "Listen" button next to the Coordinator summary and the explanation,
+  rendered only when `/speech/status` reports `enabled`. The `ELEVENLABS_API_KEY` that had sat
+  unread in `.env` since forever is now actually wired through `settings.py`.
+
+- **Made the specialist agents load-bearing.** They previously only produced prose. Each agent
+  now proposes a bounded, deterministic adjustment on its own channel *before*
+  `compute_utility_scores` runs (proposals summed per channel, then clamped), so deleting an
+  agent changes the recommendation. Deltas are pure functions of the metrics + an optional
+  caller-supplied AQI — never LLM-chosen — so the outcome stays reproducible and a Groq outage
+  can't move it. Guarded by `tests/domain/negotiation/test_adjustments.py`.
+- **Fixed the Groq model default.** `groq/compound` (the old default) has no tool-calling
+  support, yet every LLM call uses a forced `tool_choice`. Default is now `openai/gpt-oss-20b`;
+  the `maxLength` bounds in `negotiation_prompts.py` (which Groq validates server-side) were
+  raised so a normal-length response no longer silently drops to the fallback.
 
 - Fixed a real bug where a fresh trip's Preference Memory learning signal was attributed against
   an arbitrary "current mode" instead of the system's actual recommendation — now correctly

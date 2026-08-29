@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.error_handlers import register_error_handlers
-from app.api.routers import health, internal_debug, trips
+from app.api.routers import health, internal_debug, network, speech, trips, users
 from app.infrastructure.config.settings import get_settings
 from app.infrastructure.observability.logging import configure_logging
 
@@ -22,11 +22,11 @@ settings = get_settings()
 configure_logging(settings.log_level)
 
 app = FastAPI(
-    title="GreenRoute Negotiator",
-    version="0.3.0",
+    title="GreenRoute 2.0 Dynamic Journey Cooperation Network",
+    version="2.0.0",
     description=(
-        "Deterministic mode-switch recommendation API. /api/v1/* is the versioned public "
-        "contract; /internal/* is local-development-only and excluded from the OpenAPI schema."
+        "GreenRoute 2.0 Backend: Multi-traveler journey graph G(V,E) cooperation and "
+        "OSRM Tamil Nadu / Chennai spatial-temporal overlap negotiation engine."
     ),
 )
 
@@ -37,10 +37,16 @@ app.add_middleware(
     allow_origins=settings.cors_allow_origins,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
+    # /speech/narrate returns audio with these; a direct browser-to-API (non-proxy) setup
+    # needs them explicitly exposed to read the provider/voice off the response.
+    expose_headers=["X-Speech-Provider", "X-Speech-Voice", "X-Speech-Characters"],
 )
 
 register_error_handlers(app)
 
 app.include_router(health.router)
 app.include_router(trips.router)
+app.include_router(network.router)
+app.include_router(speech.router)
+app.include_router(users.router)
 app.include_router(internal_debug.router)

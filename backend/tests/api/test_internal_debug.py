@@ -17,6 +17,7 @@ def _settings_with_env(environment: str) -> Settings:
     return Settings(
         environment=environment,
         log_level=base.log_level,
+        google_maps_api_key=base.google_maps_api_key,
         osrm_host=base.osrm_host,
         osrm_endpoints=base.osrm_endpoints,
         osrm_request_timeout_s=base.osrm_request_timeout_s,
@@ -25,6 +26,10 @@ def _settings_with_env(environment: str) -> Settings:
         groq_api_key=base.groq_api_key,
         groq_model_explanation=base.groq_model_explanation,
         groq_model_negotiation=base.groq_model_negotiation,
+        elevenlabs_api_key=base.elevenlabs_api_key,
+        elevenlabs_voice_id=base.elevenlabs_voice_id,
+        elevenlabs_model=base.elevenlabs_model,
+        elevenlabs_request_timeout_s=base.elevenlabs_request_timeout_s,
         default_origin=base.default_origin,
         default_destination=base.default_destination,
         preference_db_path=base.preference_db_path,

@@ -45,3 +45,15 @@ class NegotiationProviderFailureError(GreenRouteError):
 
 class TripNotFoundError(GreenRouteError):
     """No trip exists for the given trip_id (in-memory store, no DB in this MVP)."""
+
+
+class SpeechUnavailableError(GreenRouteError):
+    """Text-to-speech was requested but no speech provider is configured (ELEVENLABS_API_KEY
+    unset). Distinct from a provider failure -- this is a 'feature is off', not a 'feature
+    broke'. The frontend normally avoids this by checking /speech/status first."""
+
+
+class SpeechProviderFailureError(GreenRouteError):
+    """The configured speech provider (ElevenLabs) failed -- network error, non-audio response,
+    quota exhausted, bad voice id. Surfaced as a 502; the caller may retry or fall back to
+    reading the text."""

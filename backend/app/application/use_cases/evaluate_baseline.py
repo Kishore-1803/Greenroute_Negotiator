@@ -16,6 +16,7 @@ from app.domain.common.errors import ValidationError
 from app.domain.decision.entities import TRACKED_MODES, Trip
 from app.domain.decision.utility import compute_utility_scores
 from app.domain.enrichment.interfaces import CostCarbonProvider
+from app.domain.negotiation.adjustments import AGENT_ROLES, AdjustmentOutcome, apply_agent_adjustments
 from app.domain.preference.entities import STATED_PRIORITIES, UserPreference
 from app.domain.preference.interfaces import PreferenceStore
 from app.domain.routing.interfaces import RoutingProvider
@@ -28,6 +29,7 @@ class BaselineResult:
     excluded: dict[str, str]
     best_mode: str | None
     preference: UserPreference
+    adjustments: AdjustmentOutcome
 
 
 class EvaluateBaselineUseCase:
@@ -51,6 +53,9 @@ class EvaluateBaselineUseCase:
         user_id: str,
         stated_priority: str | None,
         custom_weights: dict[str, float] | None = None,
+        willing_to_carpool: bool = True,
+        aqi: float | None = None,
+        active_agents: tuple[str, ...] = AGENT_ROLES,
     ) -> BaselineResult:
         # current_mode is OPTIONAL (Master Plan primary flow: a brand-new trip has no "current"
         # mode yet -- the whole point of the recommendation is to pick one). It is only load-
@@ -71,6 +76,11 @@ class EvaluateBaselineUseCase:
                 raise ValidationError("custom_weights values must be non-negative")
             if sum(custom_weights.values()) <= 0:
                 raise ValidationError("custom_weights must sum to a positive value")
+        if aqi is not None and aqi < 0:
+            raise ValidationError(f"aqi must be non-negative, got {aqi}")
+        unknown_agents = set(active_agents) - set(AGENT_ROLES)
+        if unknown_agents:
+            raise ValidationError(f"unknown specialist agent(s): {sorted(unknown_agents)}")
 
         # Preference Memory (Master Plan Section 3): existing users get their learned vector
         # back; a brand-new user_id is cold-started from stated_priority (or "balanced"). This
@@ -90,8 +100,27 @@ class EvaluateBaselineUseCase:
             weights = preference.as_weights()
 
         routes = await self._routing.route_all_modes(origin, destination)
-        mode_metrics = [self._enrichment.enrich(route) for route in routes.values()]
-        utility_output = compute_utility_scores(mode_metrics, weights=weights)
+        raw_metrics = {m.mode: m for m in (self._enrichment.enrich(route) for route in routes.values())}
+
+        # The specialist agents' MATERIAL step (Master Plan Section 3, made load-bearing): each
+        # active agent proposes a bounded, reasoned adjustment against its own channel, the
+        # proposals are summed per channel and clamped, and the utility formula then runs on
+        # the ADJUSTED metrics -- not on the raw routing output. Deleting an agent therefore
+        # changes the scores, and can change the recommendation. See adjustments.py for why
+        # these deltas are computed deterministically here rather than chosen by an LLM.
+        adjusted_metrics, adjustment_outcome = apply_agent_adjustments(
+            raw_metrics, aqi=aqi, active_agents=active_agents
+        )
+
+        # --- Cooperation potential (carpool / relay) ---
+        # If a viable carpool commuter exists for this route, discount the Car's cost/carbon on
+        # top of the agent adjustments above, BEFORE scoring, so a shared ride can actually win
+        # the recommendation. See infrastructure/cooperation/ + domain/cooperation/overlap.py.
+        adjusted_metrics = self._apply_cooperation_savings(
+            adjusted_metrics, origin, destination, willing_to_carpool
+        )
+
+        utility_output = compute_utility_scores(list(adjusted_metrics.values()), weights=weights)
 
         best_mode = None
         if utility_output.results:
@@ -102,12 +131,72 @@ class EvaluateBaselineUseCase:
             origin=origin,
             destination=destination,
             current_mode=current_mode or best_mode or TRACKED_MODES[0],
-            baseline_metrics={m.mode: m for m in mode_metrics},
+            baseline_metrics=adjusted_metrics,
             baseline_utilities=utility_output.results,
             weights_used=weights,
             user_id=user_id,
             best_mode=best_mode,
+            raw_metrics=raw_metrics,
+            adjustments=adjustment_outcome.as_dict(),
+            aqi=aqi,
         )
         self._trip_store.save(trip)
 
-        return BaselineResult(trip=trip, excluded=utility_output.excluded, best_mode=best_mode, preference=preference)
+        return BaselineResult(
+            trip=trip,
+            excluded=utility_output.excluded,
+            best_mode=best_mode,
+            preference=preference,
+            adjustments=adjustment_outcome,
+        )
+
+    @staticmethod
+    def _apply_cooperation_savings(
+        metrics: dict[str, "object"],
+        origin: tuple[float, float],
+        destination: tuple[float, float],
+        willing_to_carpool: bool,
+    ) -> dict:
+        from app.infrastructure.cooperation.commuter_pool import COIMBATORE_COMMUTERS
+        from app.domain.cooperation.overlap import compatibility
+
+        car_m = metrics.get("car")
+        if not (
+            willing_to_carpool
+            and car_m is not None
+            and getattr(car_m, "available", False)
+            and car_m.distance_km
+            and car_m.estimated_cost_inr is not None
+            and car_m.estimated_carbon_g is not None
+        ):
+            return metrics
+
+        best_comp = 0.0
+        for commuter in COIMBATORE_COMMUTERS:
+            comp = compatibility(
+                user_origin=origin,
+                user_dest=destination,
+                user_departure_hour=8.5,
+                commuter=commuter,
+                user_route_km=car_m.distance_km,
+                commuter_route_km=10.0,
+            )
+            best_comp = max(best_comp, comp)
+
+        if best_comp < 0.2:
+            return metrics
+
+        cost_saving = round(car_m.distance_km * 3.0, 2)
+        carbon_saving = round(car_m.distance_km * 113.0, 2)
+        adjusted_car = type(car_m)(
+            mode=car_m.mode,
+            distance_km=car_m.distance_km,
+            duration_min=car_m.duration_min,
+            estimated_cost_inr=max(0.0, round(car_m.estimated_cost_inr - cost_saving, 2)),
+            estimated_carbon_g=max(0.0, round(car_m.estimated_carbon_g - carbon_saving, 2)),
+            available=car_m.available,
+            routing_source=car_m.routing_source,
+            routing_disclosure=(car_m.routing_disclosure or "") + " (Includes Co-op Savings)",
+            route_geometry=car_m.route_geometry,
+        )
+        return {mode: (adjusted_car if mode == "car" else m) for mode, m in metrics.items()}

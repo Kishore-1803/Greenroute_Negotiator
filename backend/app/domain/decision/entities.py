@@ -56,6 +56,11 @@ class Trip:
     origin: tuple[float, float]
     destination: tuple[float, float]
     current_mode: str
+    # The metrics compute_utility_scores ACTUALLY consumed -- i.e. post-agent-adjustment (see
+    # domain/negotiation/adjustments.py). Named "baseline" for the trip's pre-condition-change
+    # state, not for "unadjusted": every existing consumer (negotiation context, switch policy,
+    # explanation) wants the figures the ranking was computed from, which are these. The
+    # untouched routing/enrichment output is kept alongside as raw_metrics below.
     baseline_metrics: dict[str, ModeMetrics]
     baseline_utilities: dict[str, UtilityScore]
     condition_change: ConditionChange | None = None
@@ -74,3 +79,11 @@ class Trip:
     # went through a condition change, so the Preference Memory learning signal is attributed
     # against the actual recommendation, not an unrelated "starting mode" input.
     best_mode: str | None = None
+    # Agent-adjustment audit trail (domain/negotiation/adjustments.py). raw_metrics is the
+    # untouched routing+enrichment output; baseline_metrics above is what the specialists'
+    # resolved adjustments turned it into, and therefore what was scored. Keeping both is what
+    # makes "which agent moved which number, and by how much" answerable after the fact rather
+    # than a claim -- and what lets the ablation compare like with like.
+    raw_metrics: dict[str, ModeMetrics] = field(default_factory=dict)
+    adjustments: dict | None = None
+    aqi: float | None = None
