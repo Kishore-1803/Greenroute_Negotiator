@@ -267,7 +267,7 @@ def _weather_proposals(metrics: dict[str, ModeMetrics], weather: dict | None) ->
         return []
         
     out = []
-    for mode, m in metrics.items():
+    for mode in metrics.keys():
         delay = WEATHER_DELAY_MIN.get(mode, 0.0)
         if delay <= 0:
             continue

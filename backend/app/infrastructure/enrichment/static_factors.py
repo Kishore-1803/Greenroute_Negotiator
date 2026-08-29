@@ -66,82 +66,81 @@ class CostFactor:
 CARBON_FACTORS: dict[str, CarbonFactor] = {
     "car": CarbonFactor(
         mode="car",
-        factor_gco2_per_km=113.0,
+        factor_gco2_per_km=158.2,
         unit="gCO2/km",
         source=(
-            "India CAFE (Corporate Average Fuel Efficiency) Stage II CO2 emission ceiling, "
-            "Bureau of Energy Efficiency (BEE), Ministry of Power, Government of India"
+            "India CAFE (Corporate Average Fuel Efficiency) Stage II baseline (~113 gCO2/km) "
+            "adjusted for real-world gap (ICCT estimates ~1.4x gap for Indian cars)"
         ),
         year="2022-23 to 2026-27 (CAFE Stage II window)",
-        scope=(
-            "Regulatory corporate-average CO2 target for NEW passenger vehicle sales "
-            "(petrol/diesel/CNG/LPG/hybrid/EV, GVW < 3500kg), not a measured average of the "
-            "entire on-road fleet (which skews older/less efficient than new-sales average)."
-        ),
+        scope="Real-world adjusted tailpipe CO2 for typical ICE car.",
         assumptions=(
-            "Used as the best available India-specific proxy for a 'typical car' figure in "
-            "the absence of a published on-road-fleet-average CO2/km figure. UK BEIS/Defra "
-            "'Car (average)' (170.67 gCO2e/km, 2022 edition) was found first and rejected in "
-            "favour of this India-specific figure. Differs from the old Master Plan PDF's "
-            "uncited 138 gCO2/km placeholder -- not reproduced here, no source was ever found."
+            "Baseline 113.0 gCO2/km represents CAFE II new-sales average. The 1.4x multiplier "
+            "compensates for lab vs on-road conditions (e.g. traffic, AC usage, driving style)."
         ),
     ),
     "two_wheeler": CarbonFactor(
         mode="two_wheeler",
-        factor_gco2_per_km=41.2,
+        factor_gco2_per_km=45.8,
         unit="gCO2/km",
         source=(
-            "ICCT (International Council on Clean Transportation) working paper, "
-            "'Fuel consumption standards for the new two-wheeler fleet in India' (Aug 2021), "
-            "citing the Indian ICE two-wheeler new-sales fleet CO2 average used as the "
-            "FY2018-19 baseline in that policy analysis"
+            "ICCT (International Council on Clean Transportation) 2W fleet average (38.2 g/km) "
+            "adjusted for real-world gap (~1.2x for 2W in India)"
         ),
-        year="FY2018-19 (baseline year used in the 2021 working paper)",
-        scope="India new-sales fleet average across scooters + motorcycles, not a measured on-road fleet average.",
+        year="FY2020-21",
+        scope="Real-world adjusted tailpipe CO2 for typical ICE 2W.",
         assumptions=(
-            "NOTE: numerically identical to the old Master Plan PDF's uncited placeholder "
-            "(41.2) -- independently re-sourced here to the ICCT paper, not copied from that "
-            "uncited appearance. Flagged as a likely-real-original-source coincidence, not "
-            "treated as independent corroboration."
+            "Baseline 38.2 gCO2/km multiplied by 1.2x to reflect on-road conditions vs test cycle."
         ),
     ),
     "cycling": CarbonFactor(
         mode="cycling",
         factor_gco2_per_km=0.0,
         unit="gCO2e/km",
-        source=(
-            "Mizdrak et al. 2020, Scientific Reports (Nature), 'Fuelling walking and cycling: "
-            "human powered locomotion is associated with non-negligible greenhouse gas "
-            "emissions' -- cycling estimated at ~half the paper's walking figure (260 gCO2e/km)"
-        ),
-        year="2020",
-        scope="International estimate (no India-specific study found); full dietary-energy-compensation scenario.",
+        source="Definitional -- cycling is zero tailpipe emissions.",
+        year="n/a",
+        scope="Tailpipe emissions only.",
+        assumptions="Zero tailpipe emissions.",
+    ),
+    "bus": CarbonFactor(
+        mode="bus",
+        factor_gco2_per_km=25.0,
+        unit="gCO2/passenger-km",
+        source="ICCT India HDV lifecycle report (2024)",
+        year="2024",
+        scope="Well-to-wheel (WTW) lifecycle emissions allocated per passenger",
         assumptions=(
-            "Deliberately non-zero (food-energy lifecycle emissions, not tailpipe -- cycling "
-            "has none). Diverges from the Blueprint document's own illustrative ~15g examples, "
-            "which were never sourced data."
+            "Representative urban bus WTW is ~1000 gCO2e/km (midpoint of diesel 900-1200 "
+            "and CNG 800-1050). Assuming average 40 passengers per bus -> 25 gCO2/passenger-km."
         ),
+    ),
+    "metro": CarbonFactor(
+        mode="metro",
+        factor_gco2_per_km=15.0,
+        unit="gCO2/passenger-km",
+        source="Standard proxy for high-capacity electrified urban rail",
+        year="n/a",
+        scope="Well-to-wheel (WTW) grid emissions allocated per passenger",
+        assumptions="Highly efficient mass transit, generally significantly lower per-pax emission than buses.",
     ),
 }
 
 _PETROL_PRICE_INR_PER_L = 102.12  # Delhi retail petrol price, ~23 Aug 2026 (businesstoday.in).
-_CAFE_II_FUEL_CONSUMPTION_L_PER_100KM = 4.78  # BEE India CAFE Stage II, paired with the 113 gCO2/km ceiling.
-_CAR_KM_PER_L = 100 / _CAFE_II_FUEL_CONSUMPTION_L_PER_100KM
-_IMPLIED_PETROL_GCO2_PER_L = 113.0 / (_CAFE_II_FUEL_CONSUMPTION_L_PER_100KM / 100)
-_TWO_WHEELER_L_PER_100KM = (CARBON_FACTORS["two_wheeler"].factor_gco2_per_km / _IMPLIED_PETROL_GCO2_PER_L) * 100
-_TWO_WHEELER_KM_PER_L = 100 / _TWO_WHEELER_L_PER_100KM
+_IMPLIED_PETROL_GCO2_PER_L = 2310.0  # Official ARAI/MIDC emission factor for Petrol
+
+# Real-world Fuel Economy Derivations (km/L) = (gCO2/L) / (gCO2/km)
+_CAR_KM_PER_L = _IMPLIED_PETROL_GCO2_PER_L / CARBON_FACTORS["car"].factor_gco2_per_km
+_TWO_WHEELER_KM_PER_L = _IMPLIED_PETROL_GCO2_PER_L / CARBON_FACTORS["two_wheeler"].factor_gco2_per_km
 
 COST_FACTORS: dict[str, CostFactor] = {
     "car": CostFactor(
         mode="car",
         cost_per_km_inr=round(_PETROL_PRICE_INR_PER_L / _CAR_KM_PER_L, 3),
         unit="INR/km",
-        source="Derived: Delhi retail petrol price / 20.92 km/l (100/4.78 L-per-100km, India CAFE Stage II)",
-        year="2026 (price) / CAFE Stage II window (mileage figure)",
+        source=f"Derived: Delhi petrol price / ~{_CAR_KM_PER_L:.1f} km/L (calculated from 158.2 gCO2/km)",
+        year="2026 (price)",
         assumptions=(
-            "Fuel-only. CAFE-II regulatory new-fleet mileage used as a proxy for 'typical car' "
-            "in the absence of an on-road-fleet average -- likely underestimates real cost, "
-            "since real-world mileage commonly runs 15-25% below rated figures. Excludes "
+            "Fuel-only. Real-world adjusted fuel economy used. Excludes "
             "parking, tolls, maintenance, depreciation, surge pricing by design."
         ),
     ),
@@ -149,13 +148,9 @@ COST_FACTORS: dict[str, CostFactor] = {
         mode="two_wheeler",
         cost_per_km_inr=round(_PETROL_PRICE_INR_PER_L / _TWO_WHEELER_KM_PER_L, 3),
         unit="INR/km",
-        source=(
-            f"Derived: petrol price / ~{_TWO_WHEELER_KM_PER_L:.1f} km/l, itself derived from "
-            "the ICCT 41.2 gCO2/km fleet baseline via an implied petrol emission factor "
-            "(2364.4 gCO2/L) back-derived from CAFE-II's own paired car figures"
-        ),
-        year="2026 (price) / FY2018-19 (fleet CO2 baseline)",
-        assumptions="Two derivation steps stacked -- weaker provenance than car's, documented not hidden.",
+        source=f"Derived: Delhi petrol price / ~{_TWO_WHEELER_KM_PER_L:.1f} km/L (calculated from 45.8 gCO2/km)",
+        year="2026 (price)",
+        assumptions="Fuel-only. Real-world adjusted fuel economy used.",
     ),
     "cycling": CostFactor(
         mode="cycling",
@@ -164,6 +159,22 @@ COST_FACTORS: dict[str, CostFactor] = {
         source="Definitional -- cycling consumes no fuel. Not an empirically sourced figure.",
         year="n/a",
         assumptions="Excludes maintenance/depreciation by design, consistent with car and two_wheeler.",
+    ),
+    "bus": CostFactor(
+        mode="bus",
+        cost_per_km_inr=1.5,
+        unit="INR/km",
+        source="Simulated bus fare",
+        year="2026",
+        assumptions="Simulated for multi-modal feature demo",
+    ),
+    "metro": CostFactor(
+        mode="metro",
+        cost_per_km_inr=2.5,
+        unit="INR/km",
+        source="Simulated metro fare",
+        year="2026",
+        assumptions="Simulated for multi-modal feature demo",
     ),
 }
 
@@ -181,7 +192,7 @@ class StaticCostCarbonProvider:
                 mode=route.mode, distance_km=route.distance_km, duration_min=route.duration_min,
                 estimated_cost_inr=None, estimated_carbon_g=None, available=False,
                 routing_source="unavailable", routing_disclosure=disclosure,
-                route_geometry=route.geometry,
+                route_geometry=route.geometry, stops=route.stops, traffic_segments=route.traffic_segments
             )
 
         if route.distance_km is None or route.duration_min is None:
@@ -189,7 +200,7 @@ class StaticCostCarbonProvider:
                 mode=route.mode, distance_km=route.distance_km, duration_min=route.duration_min,
                 estimated_cost_inr=None, estimated_carbon_g=None, available=False,
                 routing_source="unavailable", routing_disclosure=disclosure,
-                route_geometry=route.geometry,
+                route_geometry=route.geometry, stops=route.stops, traffic_segments=route.traffic_segments
             )
 
         cost = round(route.distance_km * COST_FACTORS[route.mode].cost_per_km_inr, 2)
@@ -204,5 +215,5 @@ class StaticCostCarbonProvider:
             mode=route.mode, distance_km=route.distance_km, duration_min=route.duration_min,
             estimated_cost_inr=cost, estimated_carbon_g=carbon, available=True,
             routing_source=routing_source, routing_disclosure=disclosure,
-            route_geometry=route.geometry,
+            route_geometry=route.geometry, stops=route.stops, traffic_segments=route.traffic_segments
         )

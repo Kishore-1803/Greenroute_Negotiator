@@ -40,9 +40,7 @@ def _is_malformed(value) -> bool:
         return True
     if isinstance(value, float) and math.isnan(value):
         return True
-    if value < 0:
-        return True
-    return False
+    return value < 0
 
 
 def _usable_metrics(modes: list[ModeMetrics]) -> tuple[dict[str, ModeMetrics], dict[str, str]]:
