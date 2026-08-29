@@ -22,12 +22,15 @@ import {
   Scale,
   ArrowRight,
   AlertTriangle,
+  Users,
+  Handshake,
 } from 'lucide-react-native';
 import { colors, radii } from '../theme/tokens';
 import { GlassCard } from '../components/common/GlassCard';
 import { Button } from '../components/common/Button';
 import { Header } from '../components/common/Header';
 import { ModeIcon } from '../components/common/ModeIcon';
+import { SpeakButton } from '../components/common/SpeakButton';
 import { RouteMap, RouteGeometryInput } from '../components/map/RouteMap';
 import { MODE_LABEL, TRAVEL_MODES, type TravelMode } from '../types/mode';
 import {
@@ -47,6 +50,7 @@ import {
   type ObjectionCategory,
   type SelectionResponse,
   type WeatherDTO,
+  type CooperationResponse,
 } from '../services/api/types';
 import { MOCK_LOCATIONS, type LocationPoint } from '../lib/mockLocations';
 
@@ -85,6 +89,7 @@ export const TripWorkspaceScreen: React.FC = () => {
   const [explanationData, setExplanationData] = useState<ExplanationResponse | undefined>();
   const [negotiationData, setNegotiationData] = useState<NegotiationResponse | undefined>();
   const [selectionResult, setSelectionResult] = useState<SelectionResponse | undefined>();
+  const [cooperationData, setCooperationData] = useState<CooperationResponse | undefined>();
 
   // Loading states
   const [baselineLoading, setBaselineLoading] = useState(false);
@@ -92,6 +97,7 @@ export const TripWorkspaceScreen: React.FC = () => {
   const [explanationLoading, setExplanationLoading] = useState(false);
   const [negotiationLoading, setNegotiationLoading] = useState(false);
   const [selectionLoading, setSelectionLoading] = useState(false);
+  const [cooperationLoading, setCooperationLoading] = useState(false);
 
   const [pendingObjection, setPendingObjection] = useState<ObjectionCategory | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -131,6 +137,7 @@ export const TripWorkspaceScreen: React.FC = () => {
       setExplanationData(undefined);
       setNegotiationData(undefined);
       setSelectionResult(undefined);
+      setCooperationData(undefined);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Failed to fetch baseline routes.');
     } finally {
@@ -177,6 +184,19 @@ export const TripWorkspaceScreen: React.FC = () => {
       setErrorMsg(err?.message || 'Failed to run agent negotiation.');
     } finally {
       setNegotiationLoading(false);
+    }
+  }
+
+  async function handleFindCooperation() {
+    if (!activeTripId) return;
+    setCooperationLoading(true);
+    try {
+      const coop = await tripsApi.cooperation(activeTripId);
+      setCooperationData(coop);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Failed to find carpool matches.');
+    } finally {
+      setCooperationLoading(false);
     }
   }
 
@@ -616,13 +636,86 @@ export const TripWorkspaceScreen: React.FC = () => {
             )}
           </GlassCard>
 
+          {/* Section 6b: Carpool / Cooperation matching */}
+          <GlassCard style={styles.sectionCard} variant="dark">
+            <View style={styles.cardHeader}>
+              <Text style={styles.sectionTitle}>CARPOOL & COOPERATION</Text>
+              {cooperationData && (
+                <Text style={styles.distBadge}>
+                  {cooperationData.candidates.length} match{cooperationData.candidates.length === 1 ? '' : 'es'}
+                </Text>
+              )}
+            </View>
+
+            {!cooperationData ? (
+              <View style={styles.surgeTriggerBox}>
+                <Text style={styles.surgeDesc}>
+                  Find nearby commuters heading your way to share a ride or relay -- cutting cost, carbon, and vehicle trips.
+                </Text>
+                <Button
+                  title={cooperationLoading ? 'Searching…' : 'Find Carpool Matches'}
+                  onPress={handleFindCooperation}
+                  loading={cooperationLoading}
+                  variant="forest"
+                  icon={<Users size={14} color={colors.textWhite} />}
+                />
+              </View>
+            ) : cooperationData.candidates.length === 0 ? (
+              <Text style={styles.surgeDesc}>No compatible commuters found for this trip right now.</Text>
+            ) : (
+              <View style={styles.negFeedList}>
+                {cooperationData.candidates.map((c) => (
+                  <View key={c.commuter_id} style={styles.coopCard}>
+                    <View style={styles.coopHeader}>
+                      <View style={styles.agentNameRow}>
+                        <Handshake size={14} color={colors.primaryBright} />
+                        <Text style={styles.coopName}>{c.commuter_name}</Text>
+                      </View>
+                      <Text style={styles.coopType}>{c.cooperation_type}</Text>
+                    </View>
+                    <Text style={styles.agentMsg}>{c.cooperation_narrative}</Text>
+                    <View style={styles.impactGrid}>
+                      <View style={styles.impactCol}>
+                        <Text style={styles.impactLabel}>You Save</Text>
+                        <Text style={styles.impactVal}>₹{Math.round(c.estimated_user_cost_saving_inr)}</Text>
+                      </View>
+                      <View style={styles.impactCol}>
+                        <Text style={styles.impactLabel}>CO₂ Saved</Text>
+                        <Text style={styles.impactVal}>{Math.round(c.estimated_carbon_saved_g)} g</Text>
+                      </View>
+                      <View style={styles.impactCol}>
+                        <Text style={styles.impactLabel}>Detour</Text>
+                        <Text style={styles.impactVal}>+{Math.round(c.estimated_detour_min)} min</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+
+                {cooperationData.negotiation && (
+                  <View style={styles.coordinatorCard}>
+                    <View style={styles.coordHeader}>
+                      <Text style={styles.coordTitle}>COOPERATION DEAL</Text>
+                      <Text style={styles.coordProvider}>
+                        {cooperationData.negotiation.deal_reached ? 'Deal reached' : 'No deal'}
+                      </Text>
+                    </View>
+                    <Text style={styles.coordSummary}>{cooperationData.negotiation.mediator_deal}</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </GlassCard>
+
           {/* Section 7: Grounded AI Explanation & Objections */}
           <GlassCard style={styles.sectionCard} variant="dark">
             <View style={styles.cardHeader}>
               <Text style={styles.sectionTitle}>
                 {conditionData ? 'WHY THIS DECISION?' : 'WHY THIS RECOMMENDATION?'}
               </Text>
-              <Text style={styles.mathGroundedTag}>AI Math-Grounded</Text>
+              <View style={styles.headerRightGroup}>
+                {explanationData && <SpeakButton text={explanationData.summary || explanationData.reason} />}
+                <Text style={styles.mathGroundedTag}>AI Math-Grounded</Text>
+              </View>
             </View>
 
             {explanationLoading ? (
@@ -760,9 +853,12 @@ export const TripWorkspaceScreen: React.FC = () => {
                 <View style={styles.coordinatorCard}>
                   <View style={styles.coordHeader}>
                     <Text style={styles.coordTitle}>COORDINATOR DECISION</Text>
-                    <Text style={styles.coordProvider}>
-                      {negotiationData.coordinator.provider === 'groq' ? 'AI Narrated' : 'Deterministic Fallback'}
-                    </Text>
+                    <View style={styles.headerRightGroup}>
+                      <SpeakButton text={negotiationData.coordinator.summary} />
+                      <Text style={styles.coordProvider}>
+                        {negotiationData.coordinator.provider === 'groq' ? 'AI Narrated' : 'Deterministic Fallback'}
+                      </Text>
+                    </View>
                   </View>
                   <View style={styles.coordWinnerRow}>
                     <Bike size={16} color={colors.primaryBright} />
@@ -1301,5 +1397,34 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.red,
     flex: 1,
+  },
+  headerRightGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  coopCard: {
+    borderRadius: radii.md,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(142, 224, 116, 0.3)',
+    backgroundColor: 'rgba(142, 224, 116, 0.06)',
+    gap: 6,
+  },
+  coopHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  coopName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: colors.textWhite,
+  },
+  coopType: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: colors.primaryBright,
+    textTransform: 'uppercase',
   },
 });

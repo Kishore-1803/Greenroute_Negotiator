@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 // When running on an Android emulator, localhost is 10.0.2.2.
 // When running on iOS simulator or web, localhost is 127.0.0.1.
@@ -9,8 +9,30 @@ export function setCustomBaseUrl(url: string | null) {
   customBaseUrl = url;
 }
 
+// A physical device running the app through Expo Go/dev client cannot reach 127.0.0.1 or
+// 10.0.2.2 -- those only resolve to the phone itself. Metro/Expo already knows the dev
+// machine's real LAN address (that's how the phone downloaded the JS bundle in the first
+// place), so we recover it from the bundle's script URL instead of requiring a manual edit
+// here for every developer's network.
+function getDevServerHost(): string | null {
+  try {
+    const scriptURL: string | undefined = NativeModules?.SourceCode?.scriptURL;
+    if (!scriptURL) return null;
+    const match = scriptURL.match(/^https?:\/\/([^/:]+)(?::\d+)?\//);
+    return match ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getBaseUrl(): string {
   if (customBaseUrl) return customBaseUrl;
+
+  const devHost = getDevServerHost();
+  if (devHost && devHost !== 'localhost' && devHost !== '127.0.0.1') {
+    // Real device (or emulator connected over LAN): reuse the same host Metro is served from.
+    return `http://${devHost}:8000`;
+  }
   if (Platform.OS === 'android') {
     return 'http://10.0.2.2:8000';
   }

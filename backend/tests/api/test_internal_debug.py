@@ -18,6 +18,7 @@ def _settings_with_env(environment: str) -> Settings:
         environment=environment,
         log_level=base.log_level,
         google_maps_api_key=base.google_maps_api_key,
+        weatherstack_api_key=base.weatherstack_api_key,
         osrm_host=base.osrm_host,
         osrm_endpoints=base.osrm_endpoints,
         osrm_request_timeout_s=base.osrm_request_timeout_s,

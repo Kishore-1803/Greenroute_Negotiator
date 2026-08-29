@@ -3,6 +3,7 @@ import type {
   BaselineRequest,
   BaselineResponse,
   ConditionChangeResponse,
+  CooperationResponse,
   ExplanationRequest,
   ExplanationResponse,
   NegotiationResponse,
@@ -42,5 +43,12 @@ export const tripsApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  cooperation(tripId: string, departureHour: number = 8.5): Promise<CooperationResponse> {
+    return apiFetch<CooperationResponse>(
+      `/api/v1/trips/${tripId}/cooperation?departure_hour=${departureHour}`,
+      { method: 'POST' }
+    );
   },
 };

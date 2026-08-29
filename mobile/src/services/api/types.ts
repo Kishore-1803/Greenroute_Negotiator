@@ -153,7 +153,7 @@ export interface ConditionChangeResponse {
 
 export interface AgentArgumentDTO {
   round: number;
-  agent: 'speed' | 'cost' | 'carbon';
+  agent: 'speed' | 'cost' | 'carbon' | 'weather';
   message: string;
   mode_advocated: TravelMode;
   stance?: 'concede' | 'rebut' | null;

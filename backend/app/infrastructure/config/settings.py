@@ -66,8 +66,19 @@ class Settings:
 
     preference_db_path: str
     # Default preserves compatibility with lightweight Settings instances in tests and tools.
+    # Ports 8081/19006 are the mobile app's Expo web preview (`npm run web`), which -- unlike
+    # the Expo Go/dev-client app on a phone -- runs in an actual browser and is therefore
+    # subject to CORS.
     cors_allow_origins: list[str] = field(
-        default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"]
+        default_factory=lambda: [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://localhost:8081",
+            "http://127.0.0.1:8081",
+            "http://localhost:19006",
+            "http://127.0.0.1:19006",
+        ]
     )
 
 
@@ -80,7 +91,8 @@ def get_settings() -> Settings:
             origin.strip()
             for origin in os.getenv(
                 "CORS_ALLOW_ORIGINS",
-                "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174",
+                "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,"
+                "http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006",
             ).split(",")
             if origin.strip()
         ],
