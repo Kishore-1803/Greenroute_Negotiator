@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Map as MapLibreGLMap, Marker, type Map as MapLibreMap } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { Compass, Maximize2, Minus, Plus } from 'lucide-react';
-import { BASEMAP_OPTIONS, MULTI_LAYER_MAP_STYLE, type MapBasemapType } from './map-style';
-import { boundsForRoutes, setRouteLayers, type RouteLayerInput } from './route-layer';
+import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
+import { Key, Layers, Maximize2, Minus, Plus, RefreshCw } from 'lucide-react';
+import type { RouteLayerInput } from './route-layer';
 import type { CooperationResponse } from '@/services/api/types';
 
 interface MapViewProps {
@@ -14,285 +12,306 @@ interface MapViewProps {
 
 export function MapView({ routes, cooperationData, className }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const originMarkerRef = useRef<Marker | null>(null);
-  const destMarkerRef = useRef<Marker | null>(null);
-  const etaMarkerRef = useRef<Marker | null>(null);
-  const altEtaMarkerRef = useRef<Marker | null>(null);
-  const incidentMarkerRef = useRef<Marker | null>(null);
-  
-  // Cooperation markers
-  const meetingPointRef = useRef<Marker | null>(null);
-  const splitPointRef = useRef<Marker | null>(null);
-  const relayHubRef = useRef<Marker | null>(null);
-  const routesRef = useRef(routes);
-  routesRef.current = routes;
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const polylinesRef = useRef<google.maps.Polyline[]>([]);
+  const markersRef = useRef<google.maps.Marker[]>([]);
+  const infoWindowsRef = useRef<google.maps.InfoWindow[]>([]);
 
-  const [activeBasemap, setActiveBasemap] = useState<MapBasemapType>('satellite');
+  const [activeMapType, setActiveMapType] = useState<'roadmap' | 'satellite' | 'hybrid' | 'terrain'>('roadmap');
   const [showLayerMenu, setShowLayerMenu] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const updateMarkers = (map: MapLibreMap, currentRoutes: RouteLayerInput[]) => {
-    const primaryRoute = currentRoutes.find((r) => r.role === 'primary') || currentRoutes[0];
-    const ghostRoute = currentRoutes.find((r) => r.role === 'ghost');
-    const secondaryRoute = currentRoutes.find((r) => r.role === 'secondary');
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
-    if (!primaryRoute || primaryRoute.geometry.coordinates.length < 2) return;
+  // 1. Initialize Google Map
+  useEffect(() => {
+    if (!containerRef.current) return;
 
-    const coords = primaryRoute.geometry.coordinates;
-    const originCoord = coords[0] as [number, number];
-    const destCoord = coords[coords.length - 1] as [number, number];
-    const midIdx = Math.floor(coords.length * 0.45);
-    const midCoord = coords[midIdx] as [number, number];
-
-    // 1. Sleek Origin Marker
-    if (!originMarkerRef.current) {
-      const el = document.createElement('div');
-      el.className = 'origin-pin flex items-center justify-center cursor-pointer';
-      el.innerHTML = `
-        <div class="h-3.5 w-3.5 rounded-full bg-white border-[3px] border-[#2563eb] shadow-md"></div>
-      `;
-      originMarkerRef.current = new Marker({ element: el }).setLngLat(originCoord).addTo(map);
-    } else {
-      originMarkerRef.current.setLngLat(originCoord);
+    if (!apiKey) {
+      setLoading(false);
+      setError('MISSING_KEY');
+      return;
     }
 
-    // 2. Sleek Destination Marker
-    if (!destMarkerRef.current) {
-      const el = document.createElement('div');
-      el.className = 'dest-pin flex flex-col items-center cursor-pointer';
-      el.innerHTML = `
-        <div class="h-4 w-4 rounded-full bg-[#1e293b] border-[3px] border-white shadow-md flex items-center justify-center">
-          <div class="h-1.5 w-1.5 rounded-full bg-white"></div>
-        </div>
-        <div class="w-1 h-3 bg-[#1e293b] shadow-sm"></div>
-      `;
-      destMarkerRef.current = new Marker({ element: el, anchor: 'bottom' }).setLngLat(destCoord).addTo(map);
-    } else {
-      destMarkerRef.current.setLngLat(destCoord);
-    }
+    setLoading(true);
+    setError(null);
 
-    // 3. Professional ETA Callout Bubble
-    if (!etaMarkerRef.current) {
-      const el = document.createElement('div');
-      el.className = 'eta-bubble-container cursor-pointer z-10';
-      el.innerHTML = `
-        <div class="flex items-center gap-2 rounded-md bg-black/80 backdrop-blur-md px-3 py-1.5 text-xs font-semibold text-white shadow-lg border border-white/20 transform -translate-y-2">
-          <span class="w-2 h-2 rounded-full bg-[#2563eb]"></span>
-          <span class="tracking-wide">Primary Route</span>
-        </div>
-      `;
-      etaMarkerRef.current = new Marker({ element: el }).setLngLat(midCoord).addTo(map);
-    } else {
-      etaMarkerRef.current.setLngLat(midCoord);
-    }
+    setOptions({
+      key: apiKey,
+      v: 'weekly',
+    });
 
-    // 4. Secondary Route / Alternative ETA Callout
-    if (secondaryRoute && secondaryRoute.geometry.coordinates.length > 2) {
-      const altCoords = secondaryRoute.geometry.coordinates;
-      const altMidCoord = altCoords[Math.floor(altCoords.length * 0.55)] as [number, number];
-      if (!altEtaMarkerRef.current) {
-        const el = document.createElement('div');
-        el.className = 'alt-eta-bubble-container cursor-pointer';
-        el.innerHTML = `
-          <div class="flex items-center gap-1.5 rounded-md bg-white/90 backdrop-blur-md px-2.5 py-1 text-[10px] font-semibold text-slate-800 shadow-md border border-slate-300 transform -translate-y-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-[#38bdf8]"></span>
-            <span>Alternative</span>
+    importLibrary('maps')
+      .then(() => {
+        if (!containerRef.current) return;
+
+        const map = new google.maps.Map(containerRef.current, {
+          center: { lat: 13.0300, lng: 80.2300 }, // Default Chennai
+          zoom: 14,
+          mapTypeId: google.maps.MapTypeId.ROADMAP,
+          disableDefaultUI: true, // We provide modern dark-glass UI controls
+          zoomControl: false,
+          mapTypeControl: false,
+          streetViewControl: false,
+          fullscreenControl: false,
+          styles: [
+            {
+              featureType: 'poi',
+              elementType: 'labels',
+              stylers: [{ visibility: 'off' }],
+            },
+          ],
+        });
+
+        mapRef.current = map;
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        console.error('Google Maps API failed to load:', err);
+        setLoading(false);
+        setError(err instanceof Error ? err.message : 'Failed to initialize Google Maps');
+      });
+
+    return () => {
+      polylinesRef.current.forEach((p) => p.setMap(null));
+      markersRef.current.forEach((m) => m.setMap(null));
+      infoWindowsRef.current.forEach((i) => i.close());
+      mapRef.current = null;
+    };
+  }, [apiKey]);
+
+  // 2. Render Polylines & Markers whenever routes change
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || typeof google === 'undefined' || !google.maps) return;
+
+    // Clear existing polylines, markers, infoWindows
+    polylinesRef.current.forEach((p) => p.setMap(null));
+    polylinesRef.current = [];
+    markersRef.current.forEach((m) => m.setMap(null));
+    markersRef.current = [];
+    infoWindowsRef.current.forEach((i) => i.close());
+    infoWindowsRef.current = [];
+
+    if (!routes || routes.length === 0) return;
+
+    const bounds = new google.maps.LatLngBounds();
+
+    // Order: ghost underneath, then secondary, then primary on top
+    const sortedRoutes = [
+      ...routes.filter((r) => r.role === 'ghost'),
+      ...routes.filter((r) => r.role === 'secondary'),
+      ...routes.filter((r) => r.role === 'primary'),
+    ];
+
+    sortedRoutes.forEach((route) => {
+      if (!route.geometry || !route.geometry.coordinates || route.geometry.coordinates.length === 0) return;
+
+      // Convert GeoJSON [lon, lat] -> Google Maps { lat, lng }
+      const path = route.geometry.coordinates.map(([lon, lat]) => {
+        const pt = new google.maps.LatLng(lat, lon);
+        bounds.extend(pt);
+        return pt;
+      });
+
+      const isPrimary = route.role === 'primary';
+      const isGhost = route.role === 'ghost';
+
+      // High-contrast white casing for primary route (Google Maps style)
+      if (isPrimary) {
+        const casing = new google.maps.Polyline({
+          path,
+          geodesic: true,
+          strokeColor: '#ffffff',
+          strokeOpacity: 0.95,
+          strokeWeight: 10,
+          zIndex: 10,
+          map,
+        });
+        polylinesRef.current.push(casing);
+      }
+
+      // Colored solid or dashed polyline
+      const line = new google.maps.Polyline({
+        path,
+        geodesic: true,
+        strokeColor: isGhost ? '#f59e0b' : isPrimary ? '#2563eb' : '#38bdf8',
+        strokeOpacity: isGhost ? 0.85 : isPrimary ? 1.0 : 0.75,
+        strokeWeight: isPrimary ? 6 : isGhost ? 4.5 : 4,
+        zIndex: isPrimary ? 20 : isGhost ? 5 : 15,
+        icons: isGhost
+          ? [
+              {
+                icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 },
+                offset: '0',
+                repeat: '15px',
+              },
+            ]
+          : undefined,
+        map,
+      });
+
+      polylinesRef.current.push(line);
+    });
+
+    // 3. Origin & Destination Markers on Primary Route
+    const primaryRoute = routes.find((r) => r.role === 'primary') || routes[0];
+    if (primaryRoute && primaryRoute.geometry.coordinates.length > 1) {
+      const coords = primaryRoute.geometry.coordinates;
+      const [oLon, oLat] = coords[0];
+      const [dLon, dLat] = coords[coords.length - 1];
+
+      // Origin Pin
+      const originMarker = new google.maps.Marker({
+        position: { lat: oLat, lng: oLon },
+        map,
+        title: 'Trip Origin',
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 7,
+          fillColor: '#2563eb',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 3,
+        },
+        zIndex: 50,
+      });
+      markersRef.current.push(originMarker);
+
+      // Destination Pin
+      const destMarker = new google.maps.Marker({
+        position: { lat: dLat, lng: dLon },
+        map,
+        title: 'Trip Destination',
+        icon: {
+          path: 'M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z',
+          fillColor: '#1e293b',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: 1.5,
+          scale: 1.5,
+          anchor: new google.maps.Point(12, 22),
+        },
+        zIndex: 50,
+      });
+      markersRef.current.push(destMarker);
+
+      // Midpoint ETA Callout
+      const midIdx = Math.floor(coords.length * 0.45);
+      const [mLon, mLat] = coords[midIdx];
+      const etaWindow = new google.maps.InfoWindow({
+        position: { lat: mLat, lng: mLon },
+        content: `
+          <div style="font-family: inherit; font-size: 11px; font-weight: 700; color: #1e293b; padding: 2px 4px;">
+            <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#2563eb; margin-right:4px;"></span>
+            ${primaryRoute.mode.toUpperCase()} (Selected)
           </div>
-        `;
-        altEtaMarkerRef.current = new Marker({ element: el }).setLngLat(altMidCoord).addTo(map);
-      } else {
-        altEtaMarkerRef.current.setLngLat(altMidCoord);
-      }
-    } else {
-      altEtaMarkerRef.current?.remove();
-      altEtaMarkerRef.current = null;
+        `,
+        disableAutoPan: true,
+      });
+      etaWindow.open(map);
+      infoWindowsRef.current.push(etaWindow);
     }
 
-    // 5. Traffic Surge Slowdown Badge
-    if (ghostRoute && ghostRoute.geometry.coordinates.length > 2) {
-      const gCoords = ghostRoute.geometry.coordinates;
-      const incidentCoord = gCoords[Math.floor(gCoords.length * 0.4)] as [number, number];
-      if (!incidentMarkerRef.current) {
-        const el = document.createElement('div');
-        el.className = 'incident-badge-container';
-        el.innerHTML = `
-          <div class="h-4 w-4 rounded-full bg-amber-500 border-2 border-white shadow-md flex items-center justify-center" title="Traffic Bottleneck">
-             <div class="h-1.5 w-1.5 rounded-full bg-white"></div>
-          </div>
-        `;
-        incidentMarkerRef.current = new Marker({ element: el }).setLngLat(incidentCoord).addTo(map);
-      } else {
-        incidentMarkerRef.current.setLngLat(incidentCoord);
-      }
-    } else {
-      incidentMarkerRef.current?.remove();
-      incidentMarkerRef.current = null;
+    // Fit route bounds nicely
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, 50);
     }
+  }, [routes, cooperationData]);
 
-    // 6. Cooperation Markers
-    const candidate = cooperationData?.candidates?.[0];
-    if (candidate) {
-      if (candidate.meeting_point) {
-        if (!meetingPointRef.current) {
-          const el = document.createElement('div');
-          el.className = 'coop-meeting-pin flex flex-col items-center cursor-pointer';
-          el.innerHTML = `
-            <div class="h-4 w-4 rounded-full bg-[#8EE074] border-[3px] border-black shadow-md flex items-center justify-center" title="Meeting Point: ${candidate.meeting_point_label}">
-              <div class="h-1.5 w-1.5 rounded-full bg-black"></div>
-            </div>
-          `;
-          meetingPointRef.current = new Marker({ element: el }).setLngLat([candidate.meeting_point[0], candidate.meeting_point[1]]).addTo(map);
-        } else {
-          meetingPointRef.current.setLngLat([candidate.meeting_point[0], candidate.meeting_point[1]]);
-        }
-      }
+  // Controls Handlers
+  const handleZoomIn = () => {
+    const map = mapRef.current;
+    if (map) map.setZoom((map.getZoom() || 14) + 1);
+  };
 
-      if (candidate.relay_hub) {
-        if (!relayHubRef.current) {
-          const el = document.createElement('div');
-          el.className = 'coop-relay-pin flex flex-col items-center cursor-pointer';
-          el.innerHTML = `
-            <div class="h-4 w-4 rounded-full bg-purple-500 border-[3px] border-white shadow-md flex items-center justify-center" title="Relay Hub: ${candidate.relay_hub_label}">
-              <div class="h-1.5 w-1.5 rounded-full bg-white"></div>
-            </div>
-          `;
-          relayHubRef.current = new Marker({ element: el }).setLngLat([candidate.relay_hub[0], candidate.relay_hub[1]]).addTo(map);
-        } else {
-          relayHubRef.current.setLngLat([candidate.relay_hub[0], candidate.relay_hub[1]]);
-        }
-      } else {
-        relayHubRef.current?.remove();
-        relayHubRef.current = null;
-      }
-    } else {
-      meetingPointRef.current?.remove();
-      meetingPointRef.current = null;
-      relayHubRef.current?.remove();
-      relayHubRef.current = null;
-    }
+  const handleZoomOut = () => {
+    const map = mapRef.current;
+    if (map) map.setZoom((map.getZoom() || 14) - 1);
   };
 
   const handleRecenter = () => {
     const map = mapRef.current;
-    if (!map || routes.length === 0) return;
-    const bounds = boundsForRoutes(routes);
-    if (bounds) {
-      map.fitBounds(bounds, { padding: 48, duration: 600 });
+    if (!map || !routes || routes.length === 0) return;
+    const bounds = new google.maps.LatLngBounds();
+    routes.forEach((r) => {
+      r.geometry?.coordinates?.forEach(([lon, lat]) => {
+        bounds.extend(new google.maps.LatLng(lat, lon));
+      });
+    });
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, 50);
     }
   };
 
-  const handleZoomIn = () => {
-    mapRef.current?.zoomIn({ duration: 300 });
-  };
-
-  const handleZoomOut = () => {
-    mapRef.current?.zoomOut({ duration: 300 });
-  };
-
-  const handleResetBearing = () => {
-    mapRef.current?.resetNorthPitch({ duration: 400 });
-  };
-
-  const handleBasemapChange = (type: MapBasemapType) => {
-    setActiveBasemap(type);
+  const handleMapTypeChange = (type: 'roadmap' | 'satellite' | 'hybrid' | 'terrain') => {
+    setActiveMapType(type);
     setShowLayerMenu(false);
-    const map = mapRef.current;
-    if (!map) return;
+    if (!mapRef.current) return;
 
-    map.setLayoutProperty('streets-layer', 'visibility', type === 'streets' ? 'visible' : 'none');
-    map.setLayoutProperty('satellite-layer', 'visibility', type === 'satellite' ? 'visible' : 'none');
-    map.setLayoutProperty('terrain-layer', 'visibility', type === 'terrain' ? 'visible' : 'none');
-    map.setLayoutProperty('labels-layer', 'visibility', type === 'satellite' ? 'visible' : 'none');
+    if (type === 'roadmap') mapRef.current.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+    if (type === 'satellite') mapRef.current.setMapTypeId(google.maps.MapTypeId.SATELLITE);
+    if (type === 'hybrid') mapRef.current.setMapTypeId(google.maps.MapTypeId.HYBRID);
+    if (type === 'terrain') mapRef.current.setMapTypeId(google.maps.MapTypeId.TERRAIN);
   };
 
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const map = new MapLibreGLMap({
-      container: containerRef.current,
-      style: MULTI_LAYER_MAP_STYLE,
-      center: [76.988, 11.022],
-      zoom: 13,
-      attributionControl: { compact: true },
-      dragRotate: true,
-      pitchWithRotate: true,
-    });
-    mapRef.current = map;
-
-    map.on('load', () => {
-      const current = routesRef.current;
-      if (current.length === 0) return;
-      setRouteLayers(map, current);
-      updateMarkers(map, current);
-      const bounds = boundsForRoutes(current);
-      if (bounds) map.fitBounds(bounds, { padding: 48, animate: false });
-    });
-
-    return () => {
-      originMarkerRef.current?.remove();
-      destMarkerRef.current?.remove();
-      etaMarkerRef.current?.remove();
-      altEtaMarkerRef.current?.remove();
-      incidentMarkerRef.current?.remove();
-      meetingPointRef.current?.remove();
-      splitPointRef.current?.remove();
-      relayHubRef.current?.remove();
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || routes.length === 0) return;
-
-    const applyRoutes = () => {
-      setRouteLayers(map, routes);
-      updateMarkers(map, routes);
-      const bounds = boundsForRoutes(routes);
-      if (bounds) map.fitBounds(bounds, { padding: 48, duration: 500 });
-    };
-
-    if (map.isStyleLoaded()) {
-      applyRoutes();
-    } else {
-      map.once('load', applyRoutes);
-    }
-  }, [routes, cooperationData]);
+  if (error === 'MISSING_KEY') {
+    return (
+      <div className={`relative flex flex-col items-center justify-center p-6 text-center bg-slate-900/90 text-white rounded-2xl border border-white/10 ${className}`}>
+        <div className="h-12 w-12 rounded-2xl bg-amber-500/20 border border-amber-400/30 flex items-center justify-center mb-3">
+          <Key className="h-6 w-6 text-amber-400" />
+        </div>
+        <h3 className="text-sm font-bold tracking-tight text-white mb-1">Google Maps API Key Required</h3>
+        <p className="text-xs text-white/60 max-w-sm mb-4 leading-relaxed">
+          Add your Google Maps JavaScript API key to <code className="bg-black/50 px-1.5 py-0.5 rounded text-amber-300">frontend/.env</code> to activate the live map.
+        </p>
+        <div className="bg-black/60 border border-white/10 rounded-xl px-4 py-2 text-[11px] font-mono text-white/80 select-all">
+          VITE_GOOGLE_MAPS_API_KEY=your_key_here
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`relative overflow-hidden ${className}`}>
       <div ref={containerRef} className="h-full w-full" />
 
-      {/* Engineering-style Layer Switcher */}
+      {loading && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center text-xs text-white z-30">
+          <RefreshCw className="h-4 w-4 animate-spin text-[#8EE074] mr-2" />
+          <span>Loading Google Maps…</span>
+        </div>
+      )}
+
+      {/* Layer Switcher (Roadmap, Satellite, Hybrid, Terrain) */}
       <div className="absolute bottom-4 left-4 z-10 flex items-center">
         <div className="relative">
           <button
             type="button"
             onClick={() => setShowLayerMenu(!showLayerMenu)}
-            title="Toggle Map Layers"
+            title="Toggle Map Style"
             className="flex items-center gap-2.5 rounded-md bg-black/80 backdrop-blur-md px-3 py-2 shadow-lg border border-white/20 hover:bg-black/90 transition-all cursor-pointer text-white text-xs font-semibold tracking-wide"
           >
+            <Layers className="h-3.5 w-3.5 text-[#8EE074]" />
             <div className="flex flex-col text-left">
               <span className="text-[9px] uppercase tracking-widest text-white/50 leading-none mb-0.5">Basemap</span>
-              <span className="capitalize leading-tight">{activeBasemap}</span>
+              <span className="capitalize leading-tight">{activeMapType}</span>
             </div>
           </button>
 
           {showLayerMenu && (
             <div className="absolute bottom-full left-0 mb-2 flex flex-col rounded-md bg-black/90 backdrop-blur-md p-1 shadow-xl border border-white/20 min-w-[130px] animate-in fade-in zoom-in-95 duration-150">
-              {BASEMAP_OPTIONS.map((opt) => (
+              {(['roadmap', 'satellite', 'hybrid', 'terrain'] as const).map((type) => (
                 <button
-                  key={opt.id}
+                  key={type}
                   type="button"
-                  onClick={() => handleBasemapChange(opt.id)}
-                  className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer rounded text-left ${
-                    activeBasemap === opt.id
-                      ? 'bg-white/10 text-white'
-                      : 'text-white/70 hover:bg-white/5'
+                  onClick={() => handleMapTypeChange(type)}
+                  className={`px-3 py-2 text-xs font-medium transition-colors cursor-pointer rounded text-left capitalize ${
+                    activeMapType === type ? 'bg-white/10 text-white' : 'text-white/70 hover:bg-white/5'
                   }`}
                 >
-                  {opt.label}
+                  {type}
                 </button>
               ))}
             </div>
@@ -300,7 +319,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
         </div>
       </div>
 
-      {/* Professional Navigation Controls */}
+      {/* Modern Navigation Controls */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-1 rounded-md bg-black/80 backdrop-blur-md p-1 shadow-lg border border-white/20 text-white">
         <button
           type="button"
@@ -327,29 +346,19 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
         >
           <Maximize2 className="h-3.5 w-3.5" />
         </button>
-        <button
-          type="button"
-          onClick={handleResetBearing}
-          title="Reset Bearing"
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
-        >
-          <Compass className="h-4 w-4" />
-        </button>
       </div>
 
-      {/* Professional Route Legend */}
+      {/* Route Legend */}
       <div className="absolute top-4 left-4 z-10 flex items-center gap-3 rounded-md bg-black/80 backdrop-blur-md px-3 py-1.5 text-[10px] font-medium tracking-wide shadow-lg border border-white/20 text-white">
         <div className="flex items-center gap-1.5">
           <span className="h-2 w-3 rounded-sm bg-[#2563eb]"></span>
-          <span>Fastest Route</span>
+          <span>Selected Route</span>
         </div>
         <div className="flex items-center gap-1.5 border-l border-white/20 pl-3">
           <span className="h-2 w-3 rounded-sm bg-amber-500 border border-amber-300/50"></span>
-          <span className="text-white/70">Surge Impact Zone</span>
+          <span className="text-white/70">Surge Slowdown</span>
         </div>
       </div>
     </div>
   );
 }
-
-
