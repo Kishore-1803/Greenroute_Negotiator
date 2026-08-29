@@ -1,0 +1,106 @@
+"""
+infrastructure/llm/fallback.py
+
+DeterministicFallbackExplanationProvider -- the second implementation of
+domain.explanation.interfaces.ExplanationProvider. Used when Groq fails or its output fails
+validation (Part J: "do NOT return fabricated AI text ... use a deterministic template
+generated from the decision context. Every number must come directly from the deterministic
+decision object."). No network call, no randomness, no LLM -- pure string templates reading
+only from ExplanationContext fields, so it can never introduce an unsupported number.
+"""
+
+from __future__ import annotations
+
+from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
+
+_TRAFFIC_DISCLOSURE = (
+    "Traffic conditions in this demo are simulated: a real OSRM segment-speed-file + "
+    "osrm-customize recomputation was run, not live sensed traffic."
+)
+_TWO_WHEELER_DISCLOSURE = "Two-wheeler routing uses a disclosed, adjusted OSRM car profile, not a dedicated motorcycle router."
+
+
+def _mode_label(mode: str | None) -> str:
+    return {"car": "car", "two_wheeler": "two-wheeler", "cycling": "cycling"}.get(mode or "", str(mode))
+
+
+def _base_summary(context: ExplanationContext) -> str:
+    if context.decision == "RECOMMEND":
+        return (
+            f"{_mode_label(context.recommended_mode)} is the recommended mode for this trip: it scores "
+            f"highest on the utility formula, which weighs time, cost, and carbon together using your "
+            f"current preference weights."
+        )
+    if context.decision == "SWITCH":
+        return (
+            f"Switching to {_mode_label(context.recommended_mode)} is recommended: it saves "
+            f"{context.time_saved_min:g} minutes, Rs{context.cost_saved_inr:g}, and "
+            f"{context.carbon_saved_g:g}g CO2 compared to staying with {_mode_label(context.current_mode)}, "
+            f"under the current conditions."
+        )
+    return (
+        f"Staying with {_mode_label(context.current_mode)} is recommended -- no alternative meets both "
+        f"the utility-advantage and minimum-savings thresholds under the current conditions."
+    )
+
+
+def _base_reason(context: ExplanationContext) -> str:
+    if context.decision == "RECOMMEND":
+        if context.utility_advantage is not None:
+            return (
+                f"{_mode_label(context.recommended_mode)} scores {context.utility_advantage:g} higher on the "
+                f"deterministic utility formula than the next-best mode considered for this trip."
+            )
+        return f"{_mode_label(context.recommended_mode)} was the only usable mode for this trip."
+    if context.decision == "SWITCH":
+        return (
+            f"{_mode_label(context.recommended_mode)} scores {context.utility_advantage:g} higher on the "
+            f"deterministic utility formula (time/cost/carbon weighted), which clears the required "
+            f"utility-advantage gate, and clears at least one of the absolute savings thresholds."
+        )
+    return "No alternative cleared both the relative utility-advantage gate and an absolute savings gate."
+
+
+_OBJECTION_TEMPLATES = {
+    "why_switch": _base_summary,
+    "why_stay": _base_summary,
+    "what_changed": lambda c: (
+        f"Conditions changed via a {'simulated' if c.is_simulated else 'live'} "
+        f"{c.condition_change_type.replace('_', ' ')}, which altered the routing metrics feeding this decision."
+    ),
+    "is_traffic_real": lambda c: _TRAFFIC_DISCLOSURE,
+    "are_emissions_exact": lambda c: (
+        "Carbon figures are estimates from sourced per-km factors (see the app's documented sources), "
+        "not direct vehicle measurements -- treat them as representative, not exact."
+    ),
+    "why_this_mode": lambda c: _base_reason(c),
+    "unsupported_constraint": lambda c: (
+        f'The factor you mentioned ("{c.objection_text}") is not represented in the current model -- '
+        f"the decision above does not account for it."
+    ),
+}
+
+
+class DeterministicFallbackExplanationProvider:
+    async def generate_explanation(self, context: ExplanationContext) -> ExplanationOutput:
+        limitations = list(context.limitations)
+        if context.recommended_mode == "two_wheeler" or context.current_mode == "two_wheeler":
+            limitations.append(_TWO_WHEELER_DISCLOSURE)
+        if context.is_simulated:
+            limitations.append(_TRAFFIC_DISCLOSURE)
+
+        if context.objection_category and context.objection_category in _OBJECTION_TEMPLATES:
+            summary = _OBJECTION_TEMPLATES[context.objection_category](context)
+            reason = _base_reason(context)
+        else:
+            summary = _base_summary(context)
+            reason = _base_reason(context)
+
+        return ExplanationOutput(
+            summary=summary,
+            reason=reason,
+            decision=context.decision,
+            limitations=tuple(dict.fromkeys(limitations)),  # de-dupe, preserve order
+            confidence_note="Generated by the deterministic fallback template, not the LLM.",
+            provider="deterministic-fallback",
+        )

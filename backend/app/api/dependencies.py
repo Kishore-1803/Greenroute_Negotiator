@@ -1,0 +1,137 @@
+"""
+app/api/dependencies.py
+
+Composition root: wires infrastructure adapters into the domain interfaces they implement,
+and injects them into application use cases. This is the ONLY file that knows every concrete
+class exists -- routers depend on use cases, use cases depend on interfaces, nothing else
+imports across those boundaries. Singletons via functools.lru_cache (this is a single-process
+FastAPI app; no need for a heavier DI container).
+"""
+
+from __future__ import annotations
+
+import logging
+from functools import lru_cache
+
+from app.domain.common.errors import ExplanationProviderFailureError, NegotiationProviderFailureError
+from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
+from app.application.services.trip_store import InMemoryTripStore
+from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
+from app.application.use_cases.explain_decision import ExplainDecisionUseCase
+from app.application.use_cases.record_selection import RecordSelectionUseCase
+from app.application.use_cases.run_negotiation import RunNegotiationUseCase
+from app.application.use_cases.trigger_condition_change import TriggerConditionChangeUseCase
+from app.domain.negotiation.entities import NegotiationContext, NegotiationTranscript
+from app.infrastructure.config.settings import get_settings
+from app.infrastructure.enrichment.static_factors import StaticCostCarbonProvider
+from app.infrastructure.llm.fallback import DeterministicFallbackExplanationProvider
+from app.infrastructure.llm.groq_client import GroqExplanationProvider
+from app.infrastructure.llm.negotiation_fallback import DeterministicNegotiationFallbackProvider
+from app.infrastructure.llm.negotiation_provider import GroqNegotiationProvider
+from app.infrastructure.preference.sqlite_store import SQLitePreferenceStore
+from app.infrastructure.routing.osrm.cached_fallback import CachedFallbackRoutingProvider
+from app.infrastructure.routing.osrm.client import OSRMRoutingProvider
+from app.infrastructure.routing.osrm.traffic import OSRMTrafficSimulator
+
+logger = logging.getLogger(__name__)
+
+
+class _UnconfiguredExplanationProvider:
+    """Stand-in used when GROQ_API_KEY is absent, so the use case's normal
+    try-primary/except-fallback path handles "no LLM configured" the same way it handles
+    "LLM call failed" -- no special-casing needed at the call site."""
+
+    async def generate_explanation(self, context: ExplanationContext) -> ExplanationOutput:
+        raise ExplanationProviderFailureError("no explanation provider configured (GROQ_API_KEY unset)")
+
+
+class _UnconfiguredNegotiationProvider:
+    """Negotiation analogue of _UnconfiguredExplanationProvider above."""
+
+    async def run_negotiation(self, context: NegotiationContext) -> NegotiationTranscript:
+        raise NegotiationProviderFailureError("no negotiation provider configured (GROQ_API_KEY unset)")
+
+
+@lru_cache(maxsize=1)
+def get_raw_routing_provider() -> OSRMRoutingProvider:
+    return OSRMRoutingProvider(get_settings())
+
+
+@lru_cache(maxsize=1)
+def get_routing_provider() -> CachedFallbackRoutingProvider:
+    """Wrapped with the OSRM-downtime cached-demo-route fallback (Master Plan Section 6) for
+    every caller EXCEPT the traffic simulator below, which needs the raw provider: it relies
+    on real node-sequence annotations and on route() actually reaching a live container to
+    know when a Docker restart has finished -- a cached response would make it falsely think
+    the container was ready instantly."""
+    return CachedFallbackRoutingProvider(get_raw_routing_provider(), get_settings())
+
+
+@lru_cache(maxsize=1)
+def get_traffic_simulator() -> OSRMTrafficSimulator:
+    return OSRMTrafficSimulator(get_settings(), get_raw_routing_provider())
+
+
+@lru_cache(maxsize=1)
+def get_enrichment_provider() -> StaticCostCarbonProvider:
+    return StaticCostCarbonProvider()
+
+
+@lru_cache(maxsize=1)
+def get_trip_store() -> InMemoryTripStore:
+    return InMemoryTripStore()
+
+
+@lru_cache(maxsize=1)
+def get_preference_store() -> SQLitePreferenceStore:
+    return SQLitePreferenceStore(get_settings().preference_db_path)
+
+
+@lru_cache(maxsize=1)
+def get_primary_explanation_provider():
+    settings = get_settings()
+    if not settings.groq_api_key:
+        logger.warning("GROQ_API_KEY not set -- explanations will always use the deterministic fallback")
+        return _UnconfiguredExplanationProvider()
+    return GroqExplanationProvider(settings)
+
+
+@lru_cache(maxsize=1)
+def get_fallback_explanation_provider() -> DeterministicFallbackExplanationProvider:
+    return DeterministicFallbackExplanationProvider()
+
+
+@lru_cache(maxsize=1)
+def get_primary_negotiation_provider():
+    settings = get_settings()
+    if not settings.groq_api_key:
+        logger.warning("GROQ_API_KEY not set -- negotiation will always use the deterministic fallback")
+        return _UnconfiguredNegotiationProvider()
+    return GroqNegotiationProvider(settings)
+
+
+@lru_cache(maxsize=1)
+def get_fallback_negotiation_provider() -> DeterministicNegotiationFallbackProvider:
+    return DeterministicNegotiationFallbackProvider()
+
+
+def get_evaluate_baseline_use_case() -> EvaluateBaselineUseCase:
+    return EvaluateBaselineUseCase(
+        get_routing_provider(), get_enrichment_provider(), get_trip_store(), get_preference_store()
+    )
+
+
+def get_trigger_condition_change_use_case() -> TriggerConditionChangeUseCase:
+    return TriggerConditionChangeUseCase(get_traffic_simulator(), get_enrichment_provider(), get_trip_store())
+
+
+def get_explain_decision_use_case() -> ExplainDecisionUseCase:
+    return ExplainDecisionUseCase(get_primary_explanation_provider(), get_fallback_explanation_provider(), get_trip_store())
+
+
+def get_record_selection_use_case() -> RecordSelectionUseCase:
+    return RecordSelectionUseCase(get_preference_store(), get_trip_store())
+
+
+def get_run_negotiation_use_case() -> RunNegotiationUseCase:
+    return RunNegotiationUseCase(get_primary_negotiation_provider(), get_fallback_negotiation_provider(), get_trip_store())

@@ -1,0 +1,34 @@
+[project]
+name = "greenroute-backend"
+version = "0.3.0"
+description = "GreenRoute Negotiator backend -- deterministic mode-switch decision API"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.28",
+    "pydantic>=2.6",
+    "groq>=1.6",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
+
+[tool.uv]
+# The committed uv.lock is the authoritative Python dependency graph. Contributors install it
+# with `uv sync --locked --extra dev`, so a fresh machine gets the same direct and transitive
+# versions instead of re-resolving the >= ranges above.
+
+[tool.setuptools.packages.find]
+# `data/` contains OSRM assets, not importable Python code. Without this explicit scope,
+# setuptools treats it as a second top-level package and clean editable installs fail.
+include = ["app*"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
