@@ -8,13 +8,17 @@ logic lives here.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from pydantic import BaseModel
+from typing import Dict, Any
 
 from app.api.dependencies import (
     get_evaluate_baseline_use_case,
     get_explain_decision_use_case,
     get_find_cooperation_use_case,
     get_record_selection_use_case,
+    get_record_trip_memory_use_case,
+    get_retrieve_trip_memory_use_case,
     get_run_negotiation_use_case,
     get_trigger_condition_change_use_case,
 )
@@ -22,6 +26,8 @@ from app.application.use_cases.evaluate_baseline import EvaluateBaselineUseCase
 from app.application.use_cases.explain_decision import ExplainDecisionUseCase
 from app.application.use_cases.find_cooperation import FindCooperationUseCase
 from app.application.use_cases.record_selection import RecordSelectionUseCase
+from app.application.use_cases.record_trip_memory import RecordTripMemoryUseCase
+from app.application.use_cases.retrieve_trip_memory import RetrieveTripMemoryUseCase
 from app.application.use_cases.run_negotiation import RunNegotiationUseCase
 from app.application.use_cases.trigger_condition_change import (
     TriggerConditionChangeUseCase,
@@ -60,6 +66,7 @@ TRAFFIC_DISCLOSURE = (
 async def baseline(
     body: BaselineRequest,
     use_case: EvaluateBaselineUseCase = Depends(get_evaluate_baseline_use_case),
+    retrieve_memory_use_case: RetrieveTripMemoryUseCase = Depends(get_retrieve_trip_memory_use_case),
 ) -> BaselineResponse:
     origin = (body.origin_lon, body.origin_lat)
     destination = (body.dest_lon, body.dest_lat)
@@ -67,6 +74,23 @@ async def baseline(
         origin, destination, body.current_mode, body.user_id, body.stated_priority,
         body.custom_weights, body.willing_to_carpool, body.aqi,
     )
+    
+    # Optional: fetch similar past trips
+    # Distance approx logic could be shared, but for demo we extract max route distance
+    dist_km = 0.0
+    if result.trip.baseline_metrics:
+        first_mode = list(result.trip.baseline_metrics.values())[0]
+        dist_km = first_mode.distance_meters / 1000.0
+    similar_trips = retrieve_memory_use_case.execute(user_id=body.user_id, distance_km=dist_km)
+    similar_trips_data = [
+        {
+            "distance_band": t.distance_band,
+            "time_band": t.time_band,
+            "recommended_mode": t.recommended_mode,
+            "selected_mode": t.selected_mode,
+            "reason_text": t.reason_text
+        } for t in similar_trips
+    ]
 
     return BaselineResponse(
         trip_id=result.trip.trip_id,
@@ -80,6 +104,7 @@ async def baseline(
         best_mode=result.best_mode,
         preference=UserPreferenceDTO.model_validate(result.preference),
         weights_used=result.trip.weights_used,
+        similar_past_trips=similar_trips_data,
     )
 
 
@@ -87,7 +112,9 @@ async def baseline(
 async def selection(
     trip_id: str,
     body: SelectionRequest,
+    background_tasks: BackgroundTasks,
     use_case: RecordSelectionUseCase = Depends(get_record_selection_use_case),
+    record_memory_use_case: RecordTripMemoryUseCase = Depends(get_record_trip_memory_use_case),
 ) -> SelectionResponse:
     result = use_case.execute(
         trip_id=trip_id,
@@ -97,6 +124,21 @@ async def selection(
         destination_name=body.destination_name,
         duration_min=body.duration_min,
     )
+    
+    # We estimate a dummy distance based on duration for the memory recording
+    # (In a real app, distance would be passed via selection or looked up from DB)
+    distance_km = body.duration_min * 0.5  # Rough estimate: 30km/h
+    
+    background_tasks.add_task(
+        record_memory_use_case.execute,
+        trip_id=trip_id,
+        user_id=result.preference.user_id,
+        distance_km=distance_km,
+        recommended_mode=result.recommended_mode,
+        selected_mode=body.selected_mode,
+        preference=result.preference
+    )
+
     return SelectionResponse(
         trip_id=trip_id,
         selected_mode=body.selected_mode,

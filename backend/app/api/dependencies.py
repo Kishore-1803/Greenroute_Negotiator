@@ -178,8 +178,39 @@ def get_weather_provider():
 
 def get_evaluate_baseline_use_case() -> EvaluateBaselineUseCase:
     return EvaluateBaselineUseCase(
-        get_routing_provider(), get_enrichment_provider(), get_trip_store(), get_preference_store(), get_weather_provider()
+        get_routing_provider(),
+        get_enrichment_provider(),
+        get_preference_store(),
+        get_trip_store(),
+        get_weather_provider(),
     )
+
+
+@lru_cache(maxsize=1)
+def get_embedding_provider():
+    from app.infrastructure.memory.embedding_provider import CohereEmbeddingProvider, FallbackEmbeddingProvider
+    from app.infrastructure.config.settings import get_settings
+    
+    settings = get_settings()
+    if hasattr(settings, "cohere_api_key") and settings.cohere_api_key:
+        return CohereEmbeddingProvider(settings)
+    return FallbackEmbeddingProvider()
+
+
+@lru_cache(maxsize=1)
+def get_vector_store():
+    from app.infrastructure.memory.actian_store import ActianVectorStore
+    return ActianVectorStore()
+
+
+def get_record_trip_memory_use_case():
+    from app.application.use_cases.record_trip_memory import RecordTripMemoryUseCase
+    return RecordTripMemoryUseCase(get_embedding_provider(), get_vector_store())
+
+
+def get_retrieve_trip_memory_use_case():
+    from app.application.use_cases.retrieve_trip_memory import RetrieveTripMemoryUseCase
+    return RetrieveTripMemoryUseCase(get_embedding_provider(), get_vector_store())
 
 
 def get_trigger_condition_change_use_case() -> TriggerConditionChangeUseCase:

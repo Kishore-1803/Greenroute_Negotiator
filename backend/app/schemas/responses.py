@@ -38,6 +38,7 @@ class BaselineResponse(BaseModel):
     best_mode: str | None
     preference: UserPreferenceDTO
     weights_used: dict[str, float]
+    similar_past_trips: list[dict] = []
 
 
 class SelectionResponse(BaseModel):
