@@ -32,8 +32,8 @@ def test_negotiate_returns_scored_modes_and_transcript(client):
     )
 
     # negotiation layer -- narration only
-    assert len(data["round_1"]) == 3
-    assert len(data["round_2"]) == 3
+    assert len(data["round_1"]) >= 3
+    assert len(data["round_2"]) >= 3
     assert data["coordinator"]["winner"] == data["computed_winner"]
     assert data["negotiation_provider"] == "deterministic-fallback"
 

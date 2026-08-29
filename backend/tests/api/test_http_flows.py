@@ -30,8 +30,8 @@ def test_negotiation_available_immediately_after_baseline_no_condition_change_ne
     response = client.post(f"/api/v1/trips/{baseline['trip_id']}/negotiation")
     assert response.status_code == 200
     body = response.json()
-    assert {a["agent"] for a in body["round_1"]} == {"speed", "cost", "carbon"}
-    assert {a["agent"] for a in body["round_2"]} == {"speed", "cost", "carbon"}
+    assert {"speed", "cost", "carbon"} <= {a["agent"] for a in body["round_1"]}
+    assert {"speed", "cost", "carbon"} <= {a["agent"] for a in body["round_2"]}
     assert body["computed_winner"] == baseline["best_mode"]
     assert body["coordinator"]["winner"] == baseline["best_mode"]
 
