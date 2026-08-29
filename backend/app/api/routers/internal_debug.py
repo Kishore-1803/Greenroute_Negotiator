@@ -13,8 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.dependencies import get_routing_provider, get_traffic_simulator
 from app.infrastructure.config.settings import Settings, get_settings
-from app.infrastructure.routing.osrm.cached_fallback import CachedFallbackRoutingProvider
-from app.infrastructure.routing.osrm.traffic import OSRMTrafficSimulator
+from app.infrastructure.routing.cached_fallback import CachedFallbackRoutingProvider
+from app.infrastructure.routing.google_maps.traffic import GoogleMapsTrafficSimulator
 
 router = APIRouter(prefix="/internal", tags=["internal-debug"], include_in_schema=False)
 
@@ -43,7 +43,7 @@ async def routing_test(
 
 @router.post("/routing-test/surge")
 async def routing_test_surge(
-    traffic_simulator: OSRMTrafficSimulator = Depends(get_traffic_simulator),
+    traffic_simulator: GoogleMapsTrafficSimulator = Depends(get_traffic_simulator),
     settings: Settings = Depends(_require_development),
 ):
     post_change, timings = await traffic_simulator.apply_condition_change(

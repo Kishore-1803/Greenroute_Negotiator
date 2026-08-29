@@ -40,3 +40,26 @@ export function postNegotiation(tripId: string): Promise<NegotiationResponse> {
     schema: NegotiationResponseSchema,
   });
 }
+
+import {
+  CooperationResponseSchema,
+  UserImpactStatsSchema,
+  type CooperationResponse,
+  type UserImpactStats,
+} from './types';
+
+export function postCooperation(tripId: string, departureHour: number = 8.5): Promise<CooperationResponse> {
+  return apiRequest({
+    method: 'POST',
+    path: `/trips/${encodeURIComponent(tripId)}/cooperation?departure_hour=${departureHour}`,
+    schema: CooperationResponseSchema,
+  });
+}
+
+export function getUserImpact(userId: string): Promise<UserImpactStats> {
+  return apiRequest({
+    method: 'GET',
+    path: `/users/${encodeURIComponent(userId)}/impact`,
+    schema: UserImpactStatsSchema,
+  });
+}

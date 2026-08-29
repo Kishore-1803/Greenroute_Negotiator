@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { to: '/', label: 'Home' },
   { to: '/trip', label: 'Trip' },
   { to: '/how-it-works', label: 'How It Works' },
+  { to: '/impact', label: 'Impact' },
 ];
 
 export function Header() {

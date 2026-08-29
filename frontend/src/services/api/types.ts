@@ -178,11 +178,64 @@ export interface BaselineRequest {
   user_id: string;
   stated_priority?: StatedPriority;
   custom_weights?: CustomWeights;
+  willing_to_carpool?: boolean;
 }
 
 export interface SelectionRequest {
   selected_mode: TravelMode;
+  cooperation_used?: boolean;
 }
+
+export const CooperationCandidateDTOSchema = z.object({
+  commuter_id: z.string(),
+  commuter_name: z.string(),
+  commuter_mode: z.string(),
+  commuter_origin: z.array(z.number()),
+  commuter_destination: z.array(z.number()),
+  compatibility_score: z.number(),
+  cooperation_type: z.string(),
+  meeting_point: z.array(z.number()),
+  meeting_point_label: z.string(),
+  split_point: z.array(z.number()).nullable(),
+  split_point_label: z.string().nullable(),
+  relay_hub: z.array(z.number()).nullable(),
+  relay_hub_label: z.string().nullable(),
+  relay_last_mile_mode: z.string().nullable(),
+  relay_last_mile_distance_m: z.number().nullable(),
+  relay_last_mile_time_min: z.number().nullable(),
+  estimated_detour_min: z.number(),
+  estimated_walk_m: z.number(),
+  estimated_user_cost_saving_inr: z.number(),
+  estimated_commuter_cost_saving_inr: z.number(),
+  estimated_carbon_saved_g: z.number(),
+  vehicle_trips_prevented: z.number(),
+  cooperation_narrative: z.string(),
+});
+export type CooperationCandidateDTO = z.infer<typeof CooperationCandidateDTOSchema>;
+
+export const TravelerNegotiationDTOSchema = z.object({
+  user_position: z.string(),
+  commuter_position: z.string(),
+  mediator_deal: z.string(),
+  deal_reached: z.boolean(),
+});
+export type TravelerNegotiationDTO = z.infer<typeof TravelerNegotiationDTOSchema>;
+
+export const CooperationResponseSchema = z.object({
+  candidates: z.array(CooperationCandidateDTOSchema),
+  negotiation: TravelerNegotiationDTOSchema.nullable(),
+});
+export type CooperationResponse = z.infer<typeof CooperationResponseSchema>;
+
+export const UserImpactStatsSchema = z.object({
+  total_trips: z.number(),
+  green_choices: z.number(),
+  carbon_saved_g: z.number(),
+  cost_saved_inr: z.number(),
+  vehicle_trips_prevented: z.number(),
+  trees_equivalent: z.number(),
+});
+export type UserImpactStats = z.infer<typeof UserImpactStatsSchema>;
 
 /** Mirrors domain/explanation/entities.py's OBJECTION_CATEGORIES minus 'unsupported_constraint'
  * (that category exists for free-text input, which this UI doesn't collect). */

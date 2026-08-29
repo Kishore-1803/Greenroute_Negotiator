@@ -31,9 +31,9 @@ from app.infrastructure.llm.groq_client import GroqExplanationProvider
 from app.infrastructure.llm.negotiation_fallback import DeterministicNegotiationFallbackProvider
 from app.infrastructure.llm.negotiation_provider import GroqNegotiationProvider
 from app.infrastructure.preference.sqlite_store import SQLitePreferenceStore
-from app.infrastructure.routing.osrm.cached_fallback import CachedFallbackRoutingProvider
-from app.infrastructure.routing.osrm.client import OSRMRoutingProvider
-from app.infrastructure.routing.osrm.traffic import OSRMTrafficSimulator
+from app.infrastructure.routing.cached_fallback import CachedFallbackRoutingProvider
+from app.infrastructure.routing.google_maps.client import GoogleMapsRoutingProvider
+from app.infrastructure.routing.google_maps.traffic import GoogleMapsTrafficSimulator
 
 logger = logging.getLogger(__name__)
 
@@ -55,23 +55,18 @@ class _UnconfiguredNegotiationProvider:
 
 
 @lru_cache(maxsize=1)
-def get_raw_routing_provider() -> OSRMRoutingProvider:
-    return OSRMRoutingProvider(get_settings())
+def get_raw_routing_provider() -> GoogleMapsRoutingProvider:
+    return GoogleMapsRoutingProvider(get_settings())
 
 
 @lru_cache(maxsize=1)
 def get_routing_provider() -> CachedFallbackRoutingProvider:
-    """Wrapped with the OSRM-downtime cached-demo-route fallback (Master Plan Section 6) for
-    every caller EXCEPT the traffic simulator below, which needs the raw provider: it relies
-    on real node-sequence annotations and on route() actually reaching a live container to
-    know when a Docker restart has finished -- a cached response would make it falsely think
-    the container was ready instantly."""
     return CachedFallbackRoutingProvider(get_raw_routing_provider(), get_settings())
 
 
 @lru_cache(maxsize=1)
-def get_traffic_simulator() -> OSRMTrafficSimulator:
-    return OSRMTrafficSimulator(get_settings(), get_raw_routing_provider())
+def get_traffic_simulator() -> GoogleMapsTrafficSimulator:
+    return GoogleMapsTrafficSimulator(get_raw_routing_provider())
 
 
 @lru_cache(maxsize=1)
@@ -131,9 +126,22 @@ def get_explain_decision_use_case() -> ExplainDecisionUseCase:
     return ExplainDecisionUseCase(get_primary_explanation_provider(), get_fallback_explanation_provider(), get_trip_store())
 
 
-def get_record_selection_use_case() -> RecordSelectionUseCase:
-    return RecordSelectionUseCase(get_preference_store(), get_trip_store())
+@lru_cache(maxsize=1)
+def get_impact_store():
+    from app.infrastructure.storage.impact_store import SQLiteImpactStore
+    return SQLiteImpactStore(get_settings().preference_db_path)
 
+def get_record_selection_use_case() -> RecordSelectionUseCase:
+    return RecordSelectionUseCase(get_preference_store(), get_trip_store(), get_impact_store())
 
 def get_run_negotiation_use_case() -> RunNegotiationUseCase:
     return RunNegotiationUseCase(get_primary_negotiation_provider(), get_fallback_negotiation_provider(), get_trip_store())
+
+@lru_cache(maxsize=1)
+def get_traveler_negotiation_provider():
+    from app.infrastructure.llm.traveler_negotiation import GroqTravelerNegotiationProvider
+    return GroqTravelerNegotiationProvider(get_settings())
+
+def get_find_cooperation_use_case():
+    from app.application.use_cases.find_cooperation import FindCooperationUseCase
+    return FindCooperationUseCase(get_routing_provider(), get_trip_store(), get_traveler_negotiation_provider())

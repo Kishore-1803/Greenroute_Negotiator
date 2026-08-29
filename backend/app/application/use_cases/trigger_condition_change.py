@@ -45,6 +45,27 @@ class TriggerConditionChangeUseCase:
         )
         post_car_metrics = self._enrichment.enrich(post_car_route)
 
+        # Re-apply cooperation savings if the baseline trip had them
+        baseline_car = trip.baseline_metrics.get("car")
+        had_coop = baseline_car and baseline_car.routing_disclosure and "(Includes Co-op Savings)" in baseline_car.routing_disclosure
+        if had_coop and post_car_metrics.distance_km and post_car_metrics.estimated_cost_inr is not None and post_car_metrics.estimated_carbon_g is not None:
+            cost_saving = round(post_car_metrics.distance_km * 3.0, 2)
+            carbon_saving = round(post_car_metrics.distance_km * 113.0, 2)
+            new_cost = max(0.0, round(post_car_metrics.estimated_cost_inr - cost_saving, 2))
+            new_carbon = max(0.0, round(post_car_metrics.estimated_carbon_g - carbon_saving, 2))
+            
+            post_car_metrics = type(post_car_metrics)(
+                mode=post_car_metrics.mode,
+                distance_km=post_car_metrics.distance_km,
+                duration_min=post_car_metrics.duration_min,
+                estimated_cost_inr=new_cost,
+                estimated_carbon_g=new_carbon,
+                available=post_car_metrics.available,
+                routing_source=post_car_metrics.routing_source,
+                routing_disclosure=(post_car_metrics.routing_disclosure or "") + " (Includes Co-op Savings)",
+                route_geometry=post_car_metrics.route_geometry
+            )
+
         post_change_metrics = {post_car_metrics.mode: post_car_metrics} | {
             mode: m for mode, m in trip.baseline_metrics.items() if mode != "car"
         }

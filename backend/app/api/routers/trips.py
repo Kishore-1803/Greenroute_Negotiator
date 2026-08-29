@@ -59,7 +59,7 @@ async def baseline(
     origin = (body.origin_lon, body.origin_lat)
     destination = (body.dest_lon, body.dest_lat)
     result = await use_case.execute(
-        origin, destination, body.current_mode, body.user_id, body.stated_priority, body.custom_weights
+        origin, destination, body.current_mode, body.user_id, body.stated_priority, body.custom_weights, body.willing_to_carpool
     )
 
     return BaselineResponse(
@@ -75,12 +75,12 @@ async def baseline(
 
 
 @router.post("/{trip_id}/selection", response_model=SelectionResponse)
-async def selection(
+def record_selection(
     trip_id: str,
     body: SelectionRequest,
     use_case: RecordSelectionUseCase = Depends(get_record_selection_use_case),
 ) -> SelectionResponse:
-    result = use_case.execute(trip_id, body.selected_mode)
+    result = use_case.execute(trip_id, body.selected_mode, body.cooperation_used)
     return SelectionResponse(
         trip_id=trip_id,
         selected_mode=body.selected_mode,
@@ -137,6 +137,23 @@ async def negotiation(
         coordinator=CoordinatorNarrationDTO.model_validate(transcript.coordinator),
         computed_winner=result.computed_winner,
     )
+
+from app.schemas.cooperation import CooperationResponseDTO
+from app.application.use_cases.find_cooperation import FindCooperationUseCase
+from app.api.dependencies import get_find_cooperation_use_case
+
+@router.post("/{trip_id}/cooperation", response_model=CooperationResponseDTO)
+async def cooperation(
+    trip_id: str,
+    departure_hour: float = 8.5,
+    use_case: FindCooperationUseCase = Depends(get_find_cooperation_use_case),
+) -> CooperationResponseDTO:
+    result = await use_case.execute(trip_id, departure_hour)
+    # The models returned by execute matches exactly what's needed for the DTO
+    # because they have the same structure. 
+    # But let's dump and validate via Pydantic to be safe.
+    return CooperationResponseDTO.model_validate(result.model_dump())
+
 
 
 @router.post("/{trip_id}/explanation", response_model=ExplanationResponse)

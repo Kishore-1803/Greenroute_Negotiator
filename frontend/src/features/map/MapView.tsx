@@ -4,13 +4,15 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import { Compass, Maximize2, Minus, Plus } from 'lucide-react';
 import { BASEMAP_OPTIONS, MULTI_LAYER_MAP_STYLE, type MapBasemapType } from './map-style';
 import { boundsForRoutes, setRouteLayers, type RouteLayerInput } from './route-layer';
+import type { CooperationResponse } from '@/services/api/types';
 
 interface MapViewProps {
   routes: RouteLayerInput[];
+  cooperationData?: CooperationResponse;
   className?: string;
 }
 
-export function MapView({ routes, className }: MapViewProps) {
+export function MapView({ routes, cooperationData, className }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const originMarkerRef = useRef<Marker | null>(null);
@@ -18,6 +20,11 @@ export function MapView({ routes, className }: MapViewProps) {
   const etaMarkerRef = useRef<Marker | null>(null);
   const altEtaMarkerRef = useRef<Marker | null>(null);
   const incidentMarkerRef = useRef<Marker | null>(null);
+  
+  // Cooperation markers
+  const meetingPointRef = useRef<Marker | null>(null);
+  const splitPointRef = useRef<Marker | null>(null);
+  const relayHubRef = useRef<Marker | null>(null);
   const routesRef = useRef(routes);
   routesRef.current = routes;
 
@@ -121,6 +128,48 @@ export function MapView({ routes, className }: MapViewProps) {
       incidentMarkerRef.current?.remove();
       incidentMarkerRef.current = null;
     }
+
+    // 6. Cooperation Markers
+    const candidate = cooperationData?.candidates?.[0];
+    if (candidate) {
+      if (candidate.meeting_point) {
+        if (!meetingPointRef.current) {
+          const el = document.createElement('div');
+          el.className = 'coop-meeting-pin flex flex-col items-center cursor-pointer';
+          el.innerHTML = `
+            <div class="h-4 w-4 rounded-full bg-[#8EE074] border-[3px] border-black shadow-md flex items-center justify-center" title="Meeting Point: ${candidate.meeting_point_label}">
+              <div class="h-1.5 w-1.5 rounded-full bg-black"></div>
+            </div>
+          `;
+          meetingPointRef.current = new Marker({ element: el }).setLngLat([candidate.meeting_point[0], candidate.meeting_point[1]]).addTo(map);
+        } else {
+          meetingPointRef.current.setLngLat([candidate.meeting_point[0], candidate.meeting_point[1]]);
+        }
+      }
+
+      if (candidate.relay_hub) {
+        if (!relayHubRef.current) {
+          const el = document.createElement('div');
+          el.className = 'coop-relay-pin flex flex-col items-center cursor-pointer';
+          el.innerHTML = `
+            <div class="h-4 w-4 rounded-full bg-purple-500 border-[3px] border-white shadow-md flex items-center justify-center" title="Relay Hub: ${candidate.relay_hub_label}">
+              <div class="h-1.5 w-1.5 rounded-full bg-white"></div>
+            </div>
+          `;
+          relayHubRef.current = new Marker({ element: el }).setLngLat([candidate.relay_hub[0], candidate.relay_hub[1]]).addTo(map);
+        } else {
+          relayHubRef.current.setLngLat([candidate.relay_hub[0], candidate.relay_hub[1]]);
+        }
+      } else {
+        relayHubRef.current?.remove();
+        relayHubRef.current = null;
+      }
+    } else {
+      meetingPointRef.current?.remove();
+      meetingPointRef.current = null;
+      relayHubRef.current?.remove();
+      relayHubRef.current = null;
+    }
   };
 
   const handleRecenter = () => {
@@ -185,6 +234,9 @@ export function MapView({ routes, className }: MapViewProps) {
       etaMarkerRef.current?.remove();
       altEtaMarkerRef.current?.remove();
       incidentMarkerRef.current?.remove();
+      meetingPointRef.current?.remove();
+      splitPointRef.current?.remove();
+      relayHubRef.current?.remove();
       map.remove();
       mapRef.current = null;
     };
@@ -206,7 +258,7 @@ export function MapView({ routes, className }: MapViewProps) {
     } else {
       map.once('load', applyRoutes);
     }
-  }, [routes]);
+  }, [routes, cooperationData]);
 
   return (
     <div className={`relative overflow-hidden ${className}`}>

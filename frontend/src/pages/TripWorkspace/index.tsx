@@ -8,6 +8,7 @@ import { useConditionChangeMutation } from '@/features/trip/hooks/useConditionCh
 import { useExplanationMutation } from '@/features/trip/hooks/useExplanationMutation';
 import { useNegotiationMutation } from '@/features/trip/hooks/useNegotiationMutation';
 import { useSelectionMutation } from '@/features/trip/hooks/useSelectionMutation';
+import { useCooperationMutation } from '@/features/trip/hooks/useCooperationMutation';
 import type { BaselineResponse, ObjectionCategory } from '@/services/api/types';
 import { MOCK_LOCATIONS, type LocationPoint } from '@/lib/mockLocations';
 import { getOrCreateUserId } from '@/lib/userId';
@@ -35,8 +36,6 @@ export function TripWorkspacePage() {
   );
 
   const activeTripId = baselineData?.trip_id || paramTripId;
-  // Default to the system's recommendation (best_mode), not an arbitrary mode -- Master Plan
-  // primary flow: the point of the baseline call is to surface a recommended winner.
   const [selectedMode, setSelectedMode] = useState<TravelMode>(
     () => ((baselineData?.best_mode ?? baselineData?.current_mode) as TravelMode) || 'car'
   );
@@ -45,6 +44,8 @@ export function TripWorkspacePage() {
   const explanation = useExplanationMutation(activeTripId);
   const negotiation = useNegotiationMutation(activeTripId);
   const selection = useSelectionMutation(activeTripId);
+  const cooperation = useCooperationMutation(activeTripId);
+  
   const [pendingObjection, setPendingObjection] = useState<ObjectionCategory>();
   const userId = useMemo(() => getOrCreateUserId(), []);
 
@@ -60,18 +61,24 @@ export function TripWorkspacePage() {
             ? 'baseline_ready'
             : 'planning';
 
-
-
   const decided = phase === 'decided';
 
-  // Request the initial explanation automatically as soon as there is something to explain --
-  // Master Plan primary flow: baseline_ready already has a recommendation (best_mode) worth a
-  // "why" explanation, not just the advanced condition-change/SWITCH-STAY flow's `decided`.
   useEffect(() => {
     if ((phase === 'baseline_ready' || phase === 'decided') && explanation.status === 'idle') {
       explanation.mutate({});
     }
   }, [phase]);
+
+  const [willingToCarpool, setWillingToCarpool] = useState<boolean>(
+    () => (location.state as any)?.willingToCarpool ?? true
+  );
+
+  // Auto-fetch cooperation candidates when user looks at the car route
+  useEffect(() => {
+    if (phase === 'baseline_ready' && selectedMode === 'car' && willingToCarpool && cooperation.status === 'idle') {
+      cooperation.mutate({ departureHour: 8.5 });
+    }
+  }, [phase, selectedMode, willingToCarpool]);
 
   function handleFindRoute(mode: TravelMode) {
     if (!origin || !destination) return;
@@ -85,11 +92,12 @@ export function TripWorkspacePage() {
         dest_lat: destination.lat,
         current_mode: mode,
         user_id: userId,
+        willing_to_carpool: willingToCarpool,
       },
       {
         onSuccess: (data) => {
           setBaselineData(data);
-          navigate(`/trip/${data.trip_id}`, { state: { baseline: data }, replace: true });
+          navigate(`/trip/${data.trip_id}`, { state: { baseline: data, willingToCarpool }, replace: true });
         },
       }
     );
@@ -114,19 +122,20 @@ export function TripWorkspacePage() {
           dest_lat: destination.lat,
           current_mode: newMode,
           user_id: userId,
+          willing_to_carpool: willingToCarpool,
         },
         {
           onSuccess: (data) => {
             setBaselineData(data);
-            navigate(`/trip/${data.trip_id}`, { state: { baseline: data }, replace: true });
+            navigate(`/trip/${data.trip_id}`, { state: { baseline: data, willingToCarpool }, replace: true });
           },
         }
       );
     }
   }
 
-  function handleConfirmSelection(mode: TravelMode) {
-    selection.mutate({ selected_mode: mode });
+  function handleConfirmSelection(mode: TravelMode, cooperationUsed?: boolean) {
+    selection.mutate({ selected_mode: mode, cooperation_used: cooperationUsed });
   }
 
   function handleObjection(category: ObjectionCategory) {
@@ -224,6 +233,9 @@ export function TripWorkspacePage() {
             onConfirmSelection={handleConfirmSelection}
             selectionResult={selection.data}
             selectionStatus={selection.status}
+            cooperationData={cooperation.data}
+            cooperationStatus={cooperation.status}
+            onFindCooperation={() => cooperation.mutate({ departureHour: 8.5 })}
           />
         </div>
         <main
@@ -238,7 +250,7 @@ export function TripWorkspacePage() {
               </div>
             }
           >
-            <MapView routes={mapRoutes} className="h-full w-full rounded-xl" />
+            <MapView routes={mapRoutes} cooperationData={cooperation.data} className="h-full w-full rounded-xl" />
           </Suspense>
 
           {/* Condition Loading Overlay over Map */}

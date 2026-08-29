@@ -41,10 +41,15 @@ class BaselineRequest(BaseModel):
             "differs from the recommendation moves the learned vector."
         ),
     )
+    willing_to_carpool: bool = Field(
+        default=True,
+        description="Whether the user is willing and able to carpool/share their ride."
+    )
 
 
 class SelectionRequest(BaseModel):
     selected_mode: str = Field(description='One of "car", "two_wheeler", "cycling" -- the mode the user actually picked')
+    cooperation_used: bool = Field(default=False, description="Whether the user chose to cooperate via shared ride or relay")
 
 
 class ExplanationRequest(BaseModel):

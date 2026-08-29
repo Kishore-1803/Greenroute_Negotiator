@@ -43,4 +43,6 @@ register_error_handlers(app)
 
 app.include_router(health.router)
 app.include_router(trips.router)
+from app.api.routers import users
+app.include_router(users.router)
 app.include_router(internal_debug.router)

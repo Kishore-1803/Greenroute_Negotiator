@@ -9,6 +9,8 @@ import { HomePage } from '@/pages/Home';
 const TripWorkspacePage = lazy(() => import('@/pages/TripWorkspace').then((m) => ({ default: m.TripWorkspacePage })));
 const HowItWorksPage = lazy(() => import('@/pages/HowItWorks').then((m) => ({ default: m.HowItWorksPage })));
 
+const ImpactDashboardPage = lazy(() => import('@/pages/ImpactDashboard').then((m) => ({ default: m.ImpactDashboardPage })));
+
 function withShell(children: React.ReactNode) {
   return (
     <PageShell>
@@ -22,4 +24,5 @@ export const router = createBrowserRouter([
   { path: '/trip', element: withShell(<TripWorkspacePage />) },
   { path: '/trip/:tripId', element: withShell(<TripWorkspacePage />) },
   { path: '/how-it-works', element: withShell(<HowItWorksPage />) },
+  { path: '/impact', element: <Suspense fallback={<div />}> <ImpactDashboardPage /> </Suspense> },
 ]);

@@ -51,6 +51,7 @@ class EvaluateBaselineUseCase:
         user_id: str,
         stated_priority: str | None,
         custom_weights: dict[str, float] | None = None,
+        willing_to_carpool: bool = True,
     ) -> BaselineResult:
         # current_mode is OPTIONAL (Master Plan primary flow: a brand-new trip has no "current"
         # mode yet -- the whole point of the recommendation is to pick one). It is only load-
@@ -91,6 +92,50 @@ class EvaluateBaselineUseCase:
 
         routes = await self._routing.route_all_modes(origin, destination)
         mode_metrics = [self._enrichment.enrich(route) for route in routes.values()]
+
+        # --- Inject Cooperation Potential ---
+        # If a viable carpool/relay commuter exists, adjust the Car's cost/carbon 
+        # BEFORE computing utility, so it can actually win the recommendation.
+        from app.infrastructure.cooperation.commuter_pool import COIMBATORE_COMMUTERS
+        from app.domain.cooperation.overlap import compatibility
+        
+        car_m = next((m for m in mode_metrics if m.mode == "car" and m.available), None)
+        if willing_to_carpool and car_m and car_m.distance_km and car_m.estimated_cost_inr is not None and car_m.estimated_carbon_g is not None:
+            best_comp = 0.0
+            for commuter in COIMBATORE_COMMUTERS:
+                comp = compatibility(
+                    user_origin=origin,
+                    user_dest=destination,
+                    user_departure_hour=8.5,
+                    commuter=commuter,
+                    user_route_km=car_m.distance_km,
+                    commuter_route_km=10.0
+                )
+                if comp > best_comp:
+                    best_comp = comp
+                    
+            if best_comp >= 0.2:
+                # We have a match! Apply expected savings to the baseline metrics
+                cost_saving = round(car_m.distance_km * 3.0, 2)
+                carbon_saving = round(car_m.distance_km * 113.0, 2)
+                
+                new_cost = max(0.0, round(car_m.estimated_cost_inr - cost_saving, 2))
+                new_carbon = max(0.0, round(car_m.estimated_carbon_g - carbon_saving, 2))
+                
+                adjusted_car = type(car_m)(
+                    mode=car_m.mode,
+                    distance_km=car_m.distance_km,
+                    duration_min=car_m.duration_min,
+                    estimated_cost_inr=new_cost,
+                    estimated_carbon_g=new_carbon,
+                    available=car_m.available,
+                    routing_source=car_m.routing_source,
+                    routing_disclosure=(car_m.routing_disclosure or "") + " (Includes Co-op Savings)",
+                    route_geometry=car_m.route_geometry
+                )
+                mode_metrics = [adjusted_car if m.mode == "car" else m for m in mode_metrics]
+        # ------------------------------------
+
         utility_output = compute_utility_scores(mode_metrics, weights=weights)
 
         best_mode = None

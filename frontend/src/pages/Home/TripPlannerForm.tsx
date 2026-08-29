@@ -25,6 +25,7 @@ export function TripPlannerForm() {
   const [customWeights, setCustomWeights] = useState<CustomWeights>(DEFAULT_CUSTOM_WEIGHTS);
   const [origin, setOrigin] = useState<LocationPoint | null>(MOCK_LOCATIONS[0]);
   const [destination, setDestination] = useState<LocationPoint | null>(MOCK_LOCATIONS[1]);
+  const [willingToCarpool, setWillingToCarpool] = useState(true);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string>();
   const baseline = useBaselineMutation();
@@ -68,11 +69,12 @@ export function TripPlannerForm() {
         // has no current mode yet, the recommendation IS the point. best_mode in the response
         // becomes current_mode server-side.
         user_id: userId,
+        willing_to_carpool: willingToCarpool,
         ...(useCustomWeights ? { custom_weights: customWeights } : { stated_priority: priority }),
       },
       {
         onSuccess: (data) => {
-          navigate(`/trip/${data.trip_id}`, { state: { baseline: data } });
+          navigate(`/trip/${data.trip_id}`, { state: { baseline: data, willingToCarpool } });
         },
       },
     );
@@ -116,6 +118,25 @@ export function TripPlannerForm() {
             placeholder="Destination"
           />
         </div>
+
+        {/* Carpool Willingness Toggle */}
+        <label className="flex items-center gap-2 px-1 cursor-pointer group mt-1 mb-1">
+          <div className={cn(
+            "w-4 h-4 rounded-md border flex items-center justify-center transition-colors",
+            willingToCarpool ? "bg-[#8EE074] border-[#8EE074]" : "border-white/40 bg-white/5 group-hover:border-white/60"
+          )}>
+            {willingToCarpool && <svg viewBox="0 0 14 14" fill="none" className="w-3 h-3 text-[#1C2C16]"><path d="M3 7.5L5.5 10L11 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+          </div>
+          <input
+            type="checkbox"
+            className="hidden"
+            checked={willingToCarpool}
+            onChange={(e) => setWillingToCarpool(e.target.checked)}
+          />
+          <span className="text-[10px] sm:text-xs font-medium text-white/80 group-hover:text-white transition-colors">
+            Willing to carpool / have empty seats
+          </span>
+        </label>
 
         {/* Stated Priority -- Preference Memory's cold-start signal for a first-time user_id --
             or, toggled on, the Master Plan's continuous PreferenceSlider for custom weights. */}
