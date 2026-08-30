@@ -1,11 +1,10 @@
 import type { StyleSpecification } from 'maplibre-gl';
 
-export type MapBasemapType = 'satellite' | 'streets' | 'terrain';
+export type MapBasemapType = 'satellite' | 'streets';
 
 export const BASEMAP_OPTIONS: Array<{ id: MapBasemapType; label: string; icon: string }> = [
   { id: 'satellite', label: 'Satellite', icon: '🛰️' },
   { id: 'streets', label: 'Default Map', icon: '🗺️' },
-  { id: 'terrain', label: 'Terrain', icon: '⛰️' },
 ];
 
 /**
