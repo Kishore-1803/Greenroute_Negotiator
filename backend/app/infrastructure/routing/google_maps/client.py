@@ -232,6 +232,16 @@ class GoogleMapsRoutingProvider:
         polyline = route_data.get("polyline", {}).get("encodedPolyline")
         geometry = {"type": "LineString", "coordinates": decode_polyline(polyline)} if polyline else None
 
+        # Simulate traffic segments for the demo to show clear/mild/heavy colors
+        segments = None
+        if geometry and "coordinates" in geometry:
+            coords = geometry["coordinates"]
+            segments = []
+            for i in range(len(coords) - 1):
+                # Deterministic simulated traffic based on coordinate index
+                level = "clear" if i % 3 == 0 else "mild" if i % 3 == 1 else "heavy"
+                segments.append({"start_idx": i, "end_idx": i + 1, "level": level})
+
         return RouteMetrics(
             mode=mode,
             distance_km=distance_km,
@@ -239,6 +249,7 @@ class GoogleMapsRoutingProvider:
             geometry=geometry,
             node_sequence=None,
             source="google-live",
+            traffic_segments=segments
         )
 
     async def route_all_modes(

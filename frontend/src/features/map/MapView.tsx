@@ -117,11 +117,47 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
 
       const isPrimary = route.role === 'primary';
       const isGhost = route.role === 'ghost';
+      const isTransit = route.mode === 'bus' || route.mode === 'metro';
+      const hasStops = route.stops && route.stops.length >= 2;
+
+      let renderPath = path;
+      let dot1: google.maps.LatLng | null = null;
+      let dot2: google.maps.LatLng | null = null;
+      let closestIdx1 = 0;
+      let closestIdx2 = path.length - 1;
+
+      // Special transit routing visualization
+      if (isPrimary && isTransit && hasStops) {
+        // In our backend logic, stops array looks like: [origin, nearest_start, ..., nearest_end, destination]
+        // If length >= 2, we can assume index 1 is the first station (Dot 1) and length-2 is the last station (Dot 2)
+        const s1 = route.stops!.length > 2 ? route.stops![1] : route.stops![0];
+        const s2 = route.stops!.length > 2 ? route.stops![route.stops!.length - 2] : route.stops![route.stops!.length - 1];
+
+        dot1 = new google.maps.LatLng(s1[1], s1[0]);
+        dot2 = new google.maps.LatLng(s2[1], s2[0]);
+
+        // Find index of dot1 in path
+        let minDist1 = Infinity;
+        path.forEach((pt, i) => {
+          const d = Math.pow(pt.lat() - dot1!.lat(), 2) + Math.pow(pt.lng() - dot1!.lng(), 2);
+          if (d < minDist1) { minDist1 = d; closestIdx1 = i; }
+        });
+
+        // Find index of dot2 in path
+        let minDist2 = Infinity;
+        for (let i = closestIdx1; i < path.length; i++) {
+          const pt = path[i];
+          const d = Math.pow(pt.lat() - dot2!.lat(), 2) + Math.pow(pt.lng() - dot2!.lng(), 2);
+          if (d < minDist2) { minDist2 = d; closestIdx2 = i; }
+        }
+
+        renderPath = path.slice(0, closestIdx1 + 1); // Truncate route up to Dot 1
+      }
 
       // High-contrast white casing for primary route (Google Maps style)
       if (isPrimary) {
         const casing = new google.maps.Polyline({
-          path,
+          path: renderPath,
           geodesic: true,
           strokeColor: '#ffffff',
           strokeOpacity: 0.95,
@@ -135,7 +171,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
       if (isPrimary && route.traffic_segments && route.traffic_segments.length > 0) {
         // Draw the full blue line first as a base to prevent gaps between segments
         const baseLine = new google.maps.Polyline({
-          path,
+          path: renderPath,
           geodesic: true,
           strokeColor: '#2563eb', // base blue
           strokeOpacity: 1.0,
@@ -149,7 +185,9 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
         route.traffic_segments.forEach((seg) => {
           if (seg.level === 'clear') return; // let base line show
 
-          const segmentPath = path.slice(seg.start_idx, seg.end_idx + 1);
+          const segmentEnd = Math.min(seg.end_idx + 1, renderPath.length);
+          if (seg.start_idx >= renderPath.length - 1) return; // Segment is beyond truncated path
+          const segmentPath = renderPath.slice(seg.start_idx, segmentEnd);
           const color = seg.level === 'heavy' ? '#ef4444' : '#facc15';
 
           const segmentLine = new google.maps.Polyline({
@@ -166,7 +204,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
       } else {
         // Colored solid or dashed polyline (fallback or non-primary)
         const line = new google.maps.Polyline({
-          path,
+          path: renderPath,
           geodesic: true,
           strokeColor: isGhost ? '#f59e0b' : isPrimary ? '#2563eb' : '#94a3b8', // slate-400 for secondary
           strokeOpacity: isGhost ? 0.85 : isPrimary ? 1.0 : 0.8,
@@ -186,8 +224,8 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
         polylinesRef.current.push(line);
       }
 
-      // Render transit stops if present
-      if (route.stops && route.stops.length > 0) {
+      // Render transit stops if present (skip rendering normal stops if it's the special transit mode)
+      if (route.stops && route.stops.length > 0 && !(isPrimary && isTransit)) {
         route.stops.forEach(([lon, lat], idx) => {
           const stopMarker = new google.maps.Marker({
             position: { lat, lng: lon },
@@ -211,6 +249,56 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
           });
           markersRef.current.push(stopMarker);
         });
+      }
+
+      // Render Transit Dot 1 and Dot 2 with Dotted line
+      if (isPrimary && isTransit && dot1 && dot2) {
+        const dottedLinePath = path.slice(closestIdx1, closestIdx2 + 1);
+        
+        const dottedLine = new google.maps.Polyline({
+          path: dottedLinePath,
+          geodesic: true,
+          strokeColor: '#8EE074',
+          strokeOpacity: 0, // Hidden initially
+          strokeWeight: 3,
+          icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2.5 }, offset: '0', repeat: '15px' }],
+          zIndex: 25,
+          map,
+        });
+        polylinesRef.current.push(dottedLine);
+
+        const showDotted = () => dottedLine.setOptions({ strokeOpacity: 0.8 });
+        const hideDotted = () => dottedLine.setOptions({ strokeOpacity: 0 });
+
+        const createHugeDot = (position: google.maps.LatLng, numberLabel: string, title: string) => {
+          const marker = new google.maps.Marker({
+            position,
+            map,
+            title,
+            label: {
+              text: numberLabel,
+              color: '#000000',
+              fontSize: '14px',
+              fontWeight: '900',
+            },
+            icon: {
+              path: google.maps.SymbolPath.CIRCLE,
+              scale: 14, // HUGE dot
+              fillColor: '#8EE074',
+              fillOpacity: 1,
+              strokeColor: '#ffffff',
+              strokeWeight: 3,
+            },
+            zIndex: 70,
+          });
+          
+          marker.addListener('mouseover', showDotted);
+          marker.addListener('mouseout', hideDotted);
+          markersRef.current.push(marker);
+        };
+
+        createHugeDot(dot1, '1', 'Nearest Transit Hub (Start)');
+        createHugeDot(dot2, '2', 'Destination Transit Hub (End)');
       }
     });
 

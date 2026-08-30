@@ -37,13 +37,28 @@ class GoogleMapsTrafficSimulator:
         # Inject artificial penalty
         surged_duration = baseline.duration_min * surge_multiplier
         
+        # Overwrite traffic segments to predominantly heavy for the surge
+        surged_segments = None
+        if baseline.traffic_segments:
+            surged_segments = []
+            for i, seg in enumerate(baseline.traffic_segments):
+                level = "heavy" if i % 2 == 0 else "mild"
+                surged_segments.append({"start_idx": seg["start_idx"], "end_idx": seg["end_idx"], "level": level})
+        elif baseline.geometry and "coordinates" in baseline.geometry:
+            coords = baseline.geometry["coordinates"]
+            surged_segments = []
+            for i in range(len(coords) - 1):
+                level = "heavy" if i % 2 == 0 else "mild"
+                surged_segments.append({"start_idx": i, "end_idx": i + 1, "level": level})
+
         post_change = RouteMetrics(
             mode=baseline.mode,
             distance_km=baseline.distance_km,
             duration_min=surged_duration,
             geometry=baseline.geometry,
             node_sequence=None,
-            source=baseline.source
+            source=baseline.source,
+            traffic_segments=surged_segments
         )
         
         t1 = time.perf_counter()
