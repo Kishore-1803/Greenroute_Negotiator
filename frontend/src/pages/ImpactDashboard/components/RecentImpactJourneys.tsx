@@ -47,79 +47,76 @@ const SAMPLE_JOURNEYS = [
 export function RecentImpactJourneys() {
   const { data: userHistory = [] } = useUserHistoryQuery();
 
-  const journeys = userHistory.length > 0 ? userHistory.slice(0, 4) : SAMPLE_JOURNEYS;
+  const journeys = userHistory.length > 0 ? userHistory.slice(0, 3) : SAMPLE_JOURNEYS.slice(0, 3);
 
   return (
-    <div className="dark-glass-pane rounded-3xl p-5 sm:p-7 border border-white/20 shadow-2xl backdrop-blur-2xl bg-black/40 flex flex-col justify-between gap-5 relative overflow-hidden">
+    <div className="dark-glass-pane rounded-2xl p-3 sm:p-4 border border-white/15 shadow-xl backdrop-blur-xl bg-black/40 flex flex-col justify-between h-full relative overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-2xl bg-[#8EE074]/20 border border-[#8EE074]/30 flex items-center justify-center text-[#8EE074] shadow-sm">
-            <History className="h-5 w-5" />
+      <div className="flex items-center justify-between border-b border-white/10 pb-2">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-xl bg-[#8EE074]/20 border border-[#8EE074]/30 flex items-center justify-center text-[#8EE074] shrink-0">
+            <History className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
+            <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">
               Recent Carbon-Conscious Journeys
             </h3>
-            <p className="text-xs text-white/60">
-              Verified route selections & realized emissions savings
-            </p>
           </div>
         </div>
 
         <Link
           to="/profile"
-          className="flex items-center gap-1.5 text-xs font-bold text-[#8EE074] hover:text-[#9DF083] transition-colors"
+          className="flex items-center gap-1 text-[10px] font-bold text-[#8EE074] hover:text-[#9DF083] transition-colors"
         >
-          <span>View All in Profile</span>
-          <ArrowRight className="h-3.5 w-3.5" />
+          <span>View Profile</span>
+          <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
 
       {/* Journeys List */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1.5 my-1">
         {journeys.map((journey) => (
           <div
             key={journey.id}
-            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group"
+            className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group"
           >
             {/* Left: Mode icon + Route */}
-            <div className="flex items-center gap-3.5">
-              <div className="h-10 w-10 rounded-xl bg-black/50 border border-white/15 flex items-center justify-center text-lg shadow-inner shrink-0 group-hover:scale-105 transition-transform">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-7 w-7 rounded-lg bg-black/50 border border-white/15 flex items-center justify-center text-sm shadow-inner shrink-0">
                 {journey.mode.icon}
               </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-white tracking-tight">
-                    {journey.origin}
-                  </span>
-                  <span className="text-xs text-white/40">→</span>
-                  <span className="text-sm font-bold text-white tracking-tight">
-                    {journey.destination}
-                  </span>
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-1 text-[11px] font-bold text-white tracking-tight truncate">
+                  <span className="truncate">{journey.origin}</span>
+                  <span className="text-white/40">→</span>
+                  <span className="truncate">{journey.destination}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-white/50 mt-0.5">
+                <div className="flex items-center gap-1.5 text-[9.5px] text-white/50">
                   <span>{journey.mode.name}</span>
                   <span>•</span>
                   <span>{journey.distanceKm} km</span>
-                  <span>•</span>
-                  <span>{journey.timestamp}</span>
                 </div>
               </div>
             </div>
 
             {/* Right: Carbon avoided + Savings pill */}
-            <div className="flex items-center gap-2.5 self-start sm:self-auto">
-              <div className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#8EE074]/15 border border-[#8EE074]/30 text-[#8EE074] text-xs font-black">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>-{(journey.avoidedCarbonG / 1000).toFixed(1)} kg CO₂</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-0.5 px-2 py-0.5 rounded-lg bg-[#8EE074]/15 border border-[#8EE074]/30 text-[#8EE074] text-[10px] font-black">
+                <Sparkles className="h-2.5 w-2.5" />
+                <span>-{(journey.avoidedCarbonG / 1000).toFixed(1)} kg</span>
               </div>
-              <div className="px-2.5 py-1.5 rounded-xl bg-white/10 border border-white/15 text-xs font-bold text-amber-300">
+              <div className="px-1.5 py-0.5 rounded-lg bg-white/10 border border-white/15 text-[10px] font-bold text-amber-300">
                 ₹{journey.costInr}
               </div>
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between pt-1.5 border-t border-white/10 text-[10px] text-white/50">
+        <span>Continuous Emission Tracking</span>
+        <span className="text-[#8EE074] font-semibold">Realized Savings</span>
       </div>
     </div>
   );
