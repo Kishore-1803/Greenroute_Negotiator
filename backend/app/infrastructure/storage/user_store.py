@@ -39,7 +39,7 @@ def _hash_password(password: str, salt: str) -> str:
     return dk.hex()
 
 
-class SQLiteUserStore:
+class SQLAlchemyUserStore:
     def __init__(self, session_factory: sessionmaker):
         self._session_factory = session_factory
         
@@ -157,6 +157,7 @@ class SQLiteUserStore:
                 avatar_url=user.avatar_url,
                 created_at=str(user.created_at) if user.created_at else None,
             )
+
 
     def update_profile(
         self,

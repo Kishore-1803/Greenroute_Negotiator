@@ -1,5 +1,5 @@
 """
-infrastructure/preference/sqlite_store.py
+infrastructure/preference/sqlalchemy_store.py
 
 SQLAlchemy-backed PreferenceStore (Master Plan Section 3, Venkatram KS: "Architects the SQLite
 database, online weight update rule math, and cold-start presets for new users"). One table,
@@ -16,7 +16,7 @@ from app.infrastructure.database.models import UserPreference as DbUserPreferenc
 
 MIN_WEIGHT = 0.01
 
-class SQLitePreferenceStore:
+class SQLAlchemyPreferenceStore:
     def __init__(self, session_factory: sessionmaker):
         self._session_factory = session_factory
         

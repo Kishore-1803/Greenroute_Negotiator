@@ -1,5 +1,5 @@
 """
-infrastructure/storage/sqlite_negotiation_log.py
+infrastructure/storage/sqlalchemy_negotiation_log.py
 
 SQLAlchemy-backed NegotiationLogStore -- the audit trail for /api/v1/network/negotiate. Shares the
 same database file as SQLiteTripStore / SQLitePreferenceStore (settings.preference_db_path).
@@ -16,7 +16,7 @@ from app.application.services.negotiation_log_store import (
 from app.infrastructure.database.models import NegotiationLog
 
 
-class SQLiteNegotiationLogStore(NegotiationLogStore):
+class SQLAlchemyNegotiationLogStore(NegotiationLogStore):
     def __init__(self, session_factory: sessionmaker):
         self._session_factory = session_factory
         

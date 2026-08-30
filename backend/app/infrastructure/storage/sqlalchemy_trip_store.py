@@ -1,5 +1,5 @@
 """
-infrastructure/storage/sqlite_trip_store.py
+infrastructure/storage/sqlalchemy_trip_store.py
 
 Persistent Trip repository backed by SQLAlchemy.
 """
@@ -15,7 +15,7 @@ from app.domain.decision.entities import Trip as DomainTrip
 from app.infrastructure.database.models import Trip as DbTrip
 
 
-class SQLiteTripStore(TripStore):
+class SQLAlchemyTripStore(TripStore):
     def __init__(self, session_factory: sessionmaker):
         self._session_factory = session_factory
         self._adapter = TypeAdapter(DomainTrip)
