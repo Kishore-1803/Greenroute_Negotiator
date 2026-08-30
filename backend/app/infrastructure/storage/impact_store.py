@@ -13,6 +13,15 @@ from sqlalchemy.orm import sessionmaker
 from app.infrastructure.database.models import TripHistory
 
 
+from datetime import datetime, timedelta
+
+class DailyEmission(BaseModel):
+    day: str
+    actual_carbon_kg: float
+    baseline_carbon_kg: float
+    saved_kg: float
+
+
 class UserImpactStats(BaseModel):
     total_trips: int
     green_choices: int
@@ -20,6 +29,7 @@ class UserImpactStats(BaseModel):
     cost_saved_inr: float
     vehicle_trips_prevented: int
     trees_equivalent: int
+    recent_trajectory: list[DailyEmission] = []
 
 
 class JourneyRecordDTO(BaseModel):
@@ -125,6 +135,46 @@ class SQLiteImpactStore:
             coop = result[4] or 0
             
             trees_equivalent = int(carbon_saved / 21000)
+
+            # Trajectory aggregation (last 7 days)
+            seven_days_ago = datetime.utcnow() - timedelta(days=7)
+            trajectory_query = session.query(
+                func.date(TripHistory.created_at).label('day_date'),
+                func.sum(TripHistory.carbon_g).label('actual_carbon_g'),
+                func.sum(TripHistory.carbon_saved_vs_car_g).label('saved_carbon_g')
+            ).filter(
+                TripHistory.user_id == user_id,
+                TripHistory.created_at >= seven_days_ago
+            ).group_by('day_date').all()
+
+            agg_by_day = {
+                t[0]: {
+                    "actual": (t[1] or 0.0),
+                    "saved": (t[2] or 0.0)
+                }
+                for t in trajectory_query if t[0] is not None
+            }
+
+            trajectory = []
+            # We want to end on today, but since we are simulating/testing, let's just generate the last 7 days ending today.
+            for i in range(7):
+                d_obj = seven_days_ago + timedelta(days=i+1) # +1 to end on today
+                d = d_obj.strftime("%Y-%m-%d")
+                d_short = d_obj.strftime("%a")
+                if d in agg_by_day:
+                    actual = agg_by_day[d]["actual"] / 1000.0
+                    saved = agg_by_day[d]["saved"] / 1000.0
+                else:
+                    actual = 0.0
+                    saved = 0.0
+                
+                baseline = actual + saved
+                trajectory.append(DailyEmission(
+                    day=d_short,
+                    actual_carbon_kg=round(actual, 2),
+                    baseline_carbon_kg=round(baseline, 2),
+                    saved_kg=round(saved, 2)
+                ))
             
             return UserImpactStats(
                 total_trips=total_trips,
@@ -132,7 +182,8 @@ class SQLiteImpactStore:
                 carbon_saved_g=round(carbon_saved, 1),
                 cost_saved_inr=round(cost_saved, 1),
                 vehicle_trips_prevented=coop,
-                trees_equivalent=trees_equivalent
+                trees_equivalent=trees_equivalent,
+                recent_trajectory=trajectory
             )
 
     def get_user_history(self, user_id: str, limit: int = 20) -> list[JourneyRecordDTO]:

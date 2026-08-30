@@ -291,6 +291,13 @@ export const CooperationResponseSchema = z.object({
 });
 export type CooperationResponse = z.infer<typeof CooperationResponseSchema>;
 
+export const DailyEmissionSchema = z.object({
+  day: z.string(),
+  actual_carbon_kg: z.number(),
+  baseline_carbon_kg: z.number(),
+  saved_kg: z.number(),
+});
+
 export const UserImpactStatsSchema = z.object({
   total_trips: z.number(),
   green_choices: z.number(),
@@ -298,6 +305,7 @@ export const UserImpactStatsSchema = z.object({
   cost_saved_inr: z.number(),
   vehicle_trips_prevented: z.number(),
   trees_equivalent: z.number(),
+  recent_trajectory: z.array(DailyEmissionSchema).default([]),
 });
 export type UserImpactStats = z.infer<typeof UserImpactStatsSchema>;
 

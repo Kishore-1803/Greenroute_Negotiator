@@ -28,14 +28,6 @@ export function ImpactDashboardPage() {
           <div className="flex items-center gap-2 sm:gap-3">
             <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-white drop-shadow-sm">
               Climate Impact & Analytics
-            </h1>
-            <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#8EE074]/15 border border-[#8EE074]/30 text-[#8EE074]">
-              <Sparkles className="h-2.5 w-2.5" />
-              <span>Verified Ledger</span>
-            </span>
-            <span className="hidden md:inline text-[11px] text-white/50 border-l border-white/10 pl-3">
-              Real-time urban carbon abatement & multi-modal transit analysis
-            </span>
           </div>
 
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-white shadow-xs backdrop-blur-md shrink-0">
@@ -146,7 +138,7 @@ export function ImpactDashboardPage() {
           {/* Left Column: Emissions Trajectory + Recent Journeys */}
           <div className="col-span-12 lg:col-span-7 flex flex-col gap-2 sm:gap-2.5 h-full min-h-0">
             <div className="flex-1 min-h-0">
-              <EmissionTrendChart />
+              <EmissionTrendChart trajectory={data?.recent_trajectory || []} />
             </div>
             <div className="flex-1 min-h-0">
               <RecentImpactJourneys />
