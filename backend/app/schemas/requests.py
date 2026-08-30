@@ -79,6 +79,13 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class UpdateProfileRequest(BaseModel):
+    name: str | None = None
+    location: str | None = None
+    personality_tag: str | None = None
+    preferred_modes: list[str] | None = None
+    avatar_base64: str | None = Field(default=None, description="Base64 encoded string of the avatar image")
+
 class ExplanationRequest(BaseModel):
     objection_category: str | None = Field(
         default=None,

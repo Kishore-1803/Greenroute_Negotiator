@@ -35,6 +35,7 @@ from app.domain.common.errors import (
 )
 from app.domain.explanation.entities import ExplanationContext, ExplanationOutput
 from app.domain.negotiation.entities import NegotiationContext, NegotiationTranscript
+from app.domain.preference.interfaces import PreferenceStore
 from app.domain.speech.entities import Narration
 from app.infrastructure.config.settings import get_settings
 from app.infrastructure.database.session import SessionLocal
@@ -45,13 +46,13 @@ from app.infrastructure.llm.negotiation_fallback import (
     DeterministicNegotiationFallbackProvider,
 )
 from app.infrastructure.llm.negotiation_provider import GroqNegotiationProvider
-from app.infrastructure.preference.sqlite_store import SQLitePreferenceStore
+from app.infrastructure.preference.sqlalchemy_store import SQLAlchemyPreferenceStore
 from app.infrastructure.routing.cached_fallback import CachedFallbackRoutingProvider
 from app.infrastructure.routing.google_maps.client import GoogleMapsRoutingProvider
 from app.infrastructure.routing.google_maps.traffic import GoogleMapsTrafficSimulator
 from app.infrastructure.speech.elevenlabs_client import ElevenLabsSpeechProvider
-from app.infrastructure.storage.sqlite_negotiation_log import SQLiteNegotiationLogStore
-from app.infrastructure.storage.sqlite_trip_store import SQLiteTripStore
+from app.infrastructure.storage.sqlalchemy_negotiation_log import SQLAlchemyNegotiationLogStore
+from app.infrastructure.storage.sqlalchemy_trip_store import SQLAlchemyTripStore
 
 logger = logging.getLogger(__name__)
 
@@ -106,15 +107,15 @@ def get_enrichment_provider() -> StaticCostCarbonProvider:
 
 @lru_cache(maxsize=1)
 def get_trip_store() -> TripStore:
-    return SQLiteTripStore(SessionLocal)
+    return SQLAlchemyTripStore(SessionLocal)
 
 @lru_cache(maxsize=1)
-def get_preference_store() -> SQLitePreferenceStore:
-    return SQLitePreferenceStore(SessionLocal)
+def get_preference_store() -> PreferenceStore:
+    return SQLAlchemyPreferenceStore(SessionLocal)
 
 @lru_cache(maxsize=1)
 def get_negotiation_log_store() -> NegotiationLogStore:
-    return SQLiteNegotiationLogStore(SessionLocal)
+    return SQLAlchemyNegotiationLogStore(SessionLocal)
 
 
 @lru_cache(maxsize=1)
@@ -166,8 +167,8 @@ def get_impact_store():
 
 @lru_cache(maxsize=1)
 def get_user_store():
-    from app.infrastructure.storage.user_store import SQLiteUserStore
-    return SQLiteUserStore(SessionLocal)
+    from app.infrastructure.storage.user_store import SQLAlchemyUserStore
+    return SQLAlchemyUserStore(SessionLocal)
 
 
 @lru_cache(maxsize=1)
@@ -180,8 +181,8 @@ def get_evaluate_baseline_use_case() -> EvaluateBaselineUseCase:
     return EvaluateBaselineUseCase(
         get_routing_provider(),
         get_enrichment_provider(),
-        get_preference_store(),
         get_trip_store(),
+        get_preference_store(),
         get_weather_provider(),
     )
 

@@ -80,7 +80,7 @@ async def baseline(
     dist_km = 0.0
     if result.trip.baseline_metrics:
         first_mode = list(result.trip.baseline_metrics.values())[0]
-        dist_km = first_mode.distance_meters / 1000.0
+        dist_km = first_mode.distance_km
     similar_trips = retrieve_memory_use_case.execute(user_id=body.user_id, distance_km=dist_km)
     similar_trips_data = [
         {
@@ -127,7 +127,7 @@ async def selection(
     
     # We estimate a dummy distance based on duration for the memory recording
     # (In a real app, distance would be passed via selection or looked up from DB)
-    distance_km = body.duration_min * 0.5  # Rough estimate: 30km/h
+    distance_km = (body.duration_min or 30.0) * 0.5  # Rough estimate: 30km/h
     
     background_tasks.add_task(
         record_memory_use_case.execute,

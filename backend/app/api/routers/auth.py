@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 from app.api.auth import create_access_token
 from app.api.dependencies import get_user_store
-from app.infrastructure.storage.user_store import SQLiteUserStore, UserDTO
+from app.infrastructure.storage.user_store import SQLAlchemyUserStore, UserDTO
 from app.schemas.requests import LoginRequest, SignUpRequest
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
@@ -16,7 +16,7 @@ class TokenResponse(BaseModel):
 @router.post("/signup", response_model=TokenResponse)
 async def signup(
     body: SignUpRequest,
-    user_store: SQLiteUserStore = Depends(get_user_store)
+    user_store: SQLAlchemyUserStore = Depends(get_user_store)
 ):
     try:
         user = user_store.create_user(
@@ -35,7 +35,7 @@ async def signup(
 @router.post("/login", response_model=TokenResponse)
 async def login(
     body: LoginRequest,
-    user_store: SQLiteUserStore = Depends(get_user_store)
+    user_store: SQLAlchemyUserStore = Depends(get_user_store)
 ):
     user = user_store.authenticate(body.identifier, body.password)
     if not user:

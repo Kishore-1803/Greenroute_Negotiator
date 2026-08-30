@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 
 from app.api.dependencies import get_user_store
-from app.infrastructure.storage.user_store import SQLiteUserStore, UserDTO
+from app.infrastructure.storage.user_store import SQLAlchemyUserStore, UserDTO
 
 # In a real app, this should be an environment variable
 SECRET_KEY = "super-secret-greenroute-key-for-hackathon"
@@ -28,7 +28,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
-    user_store: SQLiteUserStore = Depends(get_user_store)
+    user_store: SQLAlchemyUserStore = Depends(get_user_store)
 ) -> UserDTO:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

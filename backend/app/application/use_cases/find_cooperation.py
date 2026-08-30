@@ -14,7 +14,7 @@ from app.domain.cooperation.overlap import (
 from app.domain.routing.interfaces import RoutingProvider
 from app.infrastructure.cooperation.commuter_pool import COIMBATORE_COMMUTERS
 from app.infrastructure.cooperation.transit_hubs import COIMBATORE_TRANSIT_HUBS
-from app.infrastructure.storage.sqlite_trip_store import SQLiteTripStore
+from app.application.services.trip_store import TripStore
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class CooperationResult(BaseModel):
     negotiation: TravelerNegotiationResult | None
 
 class FindCooperationUseCase:
-    def __init__(self, routing_provider: RoutingProvider, trip_store: SQLiteTripStore, negotiation_provider=None):
+    def __init__(self, routing_provider: RoutingProvider, trip_store: TripStore, negotiation_provider=None):
         self.routing = routing_provider
         self.trip_store = trip_store
         self.commuters = COIMBATORE_COMMUTERS
