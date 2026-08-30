@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import type { UserProfile } from '../data/profileData';
 
