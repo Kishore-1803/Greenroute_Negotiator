@@ -1,9 +1,9 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, Award, User, Camera, TreeDeciduous, Leaf, Car, LogOut } from 'lucide-react';
+import { MapPin, Calendar, Award, User, Camera, TreeDeciduous, Leaf, Car, LogOut, Pencil } from 'lucide-react';
 import type { UserProfile } from '../data/profileData';
-import { getToken } from '@/lib/auth';
-import { logoutUser } from '@/lib/auth';
+import { getToken, logoutUser } from '@/lib/auth';
+import { useAuth } from '@/app/providers/AuthProvider';
 import { EditProfileModal } from './EditProfileModal';
 
 interface ProfileGlassCardProps {
@@ -12,10 +12,15 @@ interface ProfileGlassCardProps {
 
 export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
   const navigate = useNavigate();
+  const { refreshUser } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatarUrl || null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    setAvatarUrl(profile.avatarUrl || null);
+  }, [profile.avatarUrl]);
 
   const handleLogout = () => {
     setIsLoggingOut(true);
@@ -55,9 +60,7 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
       body: JSON.stringify(updates),
     });
     if (!res.ok) throw new Error('Failed to update profile');
-    // We optionally trigger a reload or context update here. 
-    // The easiest way for a hackathon without lifting state is just refreshing the window
-    window.location.reload();
+    await refreshUser();
   };
 
   const greenCount = profile.stats.greenChoices || 0;
@@ -153,8 +156,9 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
             <button
               type="button"
               onClick={() => setIsEditModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/15 hover:border-white/25 px-3.5 py-2.5 text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-md"
+              className="flex items-center gap-1.5 rounded-2xl bg-white/10 hover:bg-[#8EE074]/20 active:bg-[#8EE074]/30 border border-white/20 hover:border-[#8EE074]/40 px-4 py-2.5 text-xs font-bold text-white hover:text-[#8EE074] transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-md group"
             >
+              <Pencil className="h-3.5 w-3.5 text-[#8EE074] group-hover:rotate-12 transition-transform" />
               <span>Edit Profile</span>
             </button>
 
