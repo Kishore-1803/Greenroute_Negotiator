@@ -1,6 +1,15 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import { getToken, setToken, removeToken } from '@/lib/auth';
+import { getToken, setToken, logoutUser } from '@/lib/auth';
 import type { UserProfile } from '@/pages/Profile/data/profileData';
+
+// Every trip/negotiation/impact hook reads its identity via getOrCreateUserId(), which just
+// returns whatever is already in localStorage['userId'] -- so writing the real, authenticated
+// account id into that same slot (instead of leaving it as the random guest id) is what makes
+// the rest of the app run as "you" instead of as an anonymous per-browser stranger, with no
+// changes needed to any of those call sites.
+function bindUserId(id: string): void {
+  localStorage.setItem('userId', id);
+}
 
 // We map UserDTO to our frontend UserProfile
 interface AuthContextType {
@@ -58,14 +67,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             vehicleTripsPrevented: data.impact.vehicle_trips_prevented || 0,
           },
         };
+        bindUserId(profile.id);
         setUser(profile);
       } else {
-        removeToken();
+        logoutUser();
         setUser(null);
       }
     } catch (error) {
       console.error("Auth initialization error:", error);
-      removeToken();
+      logoutUser();
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -78,11 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (token: string, userData: UserProfile) => {
     setToken(token);
+    bindUserId(userData.id);
     setUser(userData);
   };
 
   const logout = () => {
-    removeToken();
+    // Clears the token AND the bound userId -- otherwise the next person to open this browser
+    // would silently inherit the previous account's trip history and impact stats.
+    logoutUser();
     setUser(null);
   };
 

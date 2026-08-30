@@ -17,13 +17,17 @@ the same RoutingProvider port, not read by api/dependencies.py.
 
 from __future__ import annotations
 
+import logging
 import os
+import secrets
 from dataclasses import dataclass, field
 from functools import lru_cache
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -53,6 +57,12 @@ class Settings:
     groq_model_explanation: str
     groq_model_negotiation: str
 
+    # HS256 signing key for auth JWTs (see api/auth.py). Never hardcoded in source -- read from
+    # JWT_SECRET_KEY if set; otherwise a random key is generated for this process only (logged
+    # loudly below), which means tokens issued before a restart stop validating after one. Fine
+    # for local/dev use; set JWT_SECRET_KEY explicitly for anything longer-lived than a demo.
+    jwt_secret_key: str
+
     # ElevenLabs text-to-speech (optional). When elevenlabs_api_key is None the /speech/*
     # endpoints report themselves disabled and the frontend hides the "listen" controls --
     # the app never fails to start over a missing voice key.
@@ -69,6 +79,18 @@ class Settings:
     cors_allow_origins: list[str] = field(
         default_factory=lambda: ["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"]
     )
+
+
+def _resolve_jwt_secret_key() -> str:
+    configured = os.getenv("JWT_SECRET_KEY")
+    if configured:
+        return configured
+    logger.warning(
+        "JWT_SECRET_KEY not set -- generating a random per-process signing key. "
+        "Existing tokens will stop validating on restart. Set JWT_SECRET_KEY in .env "
+        "for anything beyond a single local demo session."
+    )
+    return secrets.token_hex(32)
 
 
 @lru_cache(maxsize=1)
@@ -102,6 +124,7 @@ def get_settings() -> Settings:
         # openai/gpt-oss-20b is a tool-calling-capable default. Override per your Groq account.
         groq_model_explanation=os.getenv("GROQ_MODEL_EXPLANATION", "openai/gpt-oss-20b"),
         groq_model_negotiation=os.getenv("GROQ_MODEL_NEGOTIATION", "openai/gpt-oss-20b"),
+        jwt_secret_key=_resolve_jwt_secret_key(),
         elevenlabs_api_key=os.getenv("ELEVENLABS_API_KEY") or None,
         # "River" -- a premade voice usable on the free tier ("Relaxed, Neutral,
         # Informative"). Library/cloned voices need a paid plan; override via env if you have one.

@@ -12,6 +12,8 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, Any
 
+from app.api.auth import get_current_user_optional
+from app.infrastructure.storage.user_store import UserDTO
 from app.api.dependencies import (
     get_evaluate_baseline_use_case,
     get_explain_decision_use_case,
@@ -67,11 +69,17 @@ async def baseline(
     body: BaselineRequest,
     use_case: EvaluateBaselineUseCase = Depends(get_evaluate_baseline_use_case),
     retrieve_memory_use_case: RetrieveTripMemoryUseCase = Depends(get_retrieve_trip_memory_use_case),
+    current_user: UserDTO | None = Depends(get_current_user_optional),
 ) -> BaselineResponse:
     origin = (body.origin_lon, body.origin_lat)
     destination = (body.dest_lon, body.dest_lat)
+    # A logged-in caller's own account is always the identity Preference Memory learns
+    # against -- the request body's user_id is only trusted for anonymous/guest use, and is
+    # otherwise ignored so one signed-in user can never read or write another's weights by
+    # passing a different user_id in the body.
+    user_id = current_user.id if current_user else body.user_id
     result = await use_case.execute(
-        origin, destination, body.current_mode, body.user_id, body.stated_priority,
+        origin, destination, body.current_mode, user_id, body.stated_priority,
         body.custom_weights, body.willing_to_carpool, body.aqi,
     )
     
@@ -82,7 +90,7 @@ async def baseline(
         first_mode = list(result.trip.baseline_metrics.values())[0]
         if first_mode.distance_km is not None:
             dist_km = first_mode.distance_km
-    similar_trips = retrieve_memory_use_case.execute(user_id=body.user_id, distance_km=dist_km)
+    similar_trips = retrieve_memory_use_case.execute(user_id=user_id, distance_km=dist_km)
     similar_trips_data = [
         {
             "distance_band": t.distance_band,

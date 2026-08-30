@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { ArrowRight, Menu, X, User } from 'lucide-react';
 import { cn } from '@/lib/cn';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 const NAV_LINKS = [
   { to: '/trip', label: 'Trip' },
@@ -12,6 +13,22 @@ const NAV_LINKS = [
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  // Signed out: "Get Started" is the login gateway. Signed in: it jumps straight to the
+  // planner card, same as before.
+  function handleGetStarted() {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    const formEl = document.getElementById('plan-route-card');
+    if (formEl) {
+      formEl.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      navigate('/');
+    }
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full px-6 sm:px-10 lg:px-14 pt-3.5 sm:pt-4.5 pb-1 shrink-0 bg-transparent transition-all">
@@ -47,17 +64,10 @@ export function Header() {
         <div className="hidden items-center gap-3 sm:flex shrink-0">
           <button
             type="button"
-            onClick={() => {
-              const formEl = document.getElementById('plan-route-card');
-              if (formEl) {
-                formEl.scrollIntoView({ behavior: 'smooth' });
-              } else {
-                navigate('/');
-              }
-            }}
+            onClick={handleGetStarted}
             className="flex items-center gap-2 rounded-full bg-[#4D7C3E] hover:bg-[#5A8F48] px-5 py-2 text-sm lg:text-base font-medium text-white shadow-md active:scale-95 transition-all cursor-pointer"
           >
-            <span>Get Started</span>
+            <span>{isAuthenticated ? 'Get Started' : 'Sign In'}</span>
             <ArrowRight className="h-4 w-4" />
           </button>
 
@@ -131,16 +141,11 @@ export function Header() {
             type="button"
             onClick={() => {
               setMobileOpen(false);
-              const formEl = document.getElementById('plan-route-card');
-              if (formEl) {
-                formEl.scrollIntoView({ behavior: 'smooth' });
-              } else {
-                navigate('/');
-              }
+              handleGetStarted();
             }}
             className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-[#2ea63e] py-3 text-sm font-medium text-white shadow-md hover:bg-[#34b647]"
           >
-            <span>Get Started</span>
+            <span>{isAuthenticated ? 'Get Started' : 'Sign In'}</span>
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>

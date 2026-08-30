@@ -1,17 +1,58 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, Fuel, Leaf, MessageSquareText, ArrowRight, Car, Scale } from 'lucide-react';
-import { TripPlannerForm } from './TripPlannerForm';
+import { TripPlannerForm, type StatedPriority } from './TripPlannerForm';
 import { useBaselineMutation } from '@/features/trip/hooks/useBaselineMutation';
 import { FIXED_TRIP } from '@/lib/fixedTrip';
 import { getOrCreateUserId } from '@/lib/userId';
+import { type LocationPoint } from '@/lib/mockLocations';
+import { useAuth } from '@/app/providers/AuthProvider';
 
 export function HomePage() {
   const navigate = useNavigate();
   const baseline = useBaselineMutation();
   const userId = useMemo(() => getOrCreateUserId(), []);
+  const { isAuthenticated } = useAuth();
+
+  const [origin, setOrigin] = useState<LocationPoint | null>(null);
+  const [destination, setDestination] = useState<LocationPoint | null>(null);
+  const [statedPriority, setStatedPriority] = useState<StatedPriority>('balanced');
+
+  function handleFindRoute() {
+    if (!origin || !destination) return;
+    // The Trip Workspace this leads to is a protected route anyway -- catch it here so a
+    // signed-out visitor gets sent straight to /login instead of losing the request at the
+    // next redirect.
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    baseline.mutate(
+      {
+        origin_lon: origin.lon,
+        origin_lat: origin.lat,
+        dest_lon: destination.lon,
+        dest_lat: destination.lat,
+        current_mode: 'car',
+        user_id: userId,
+        stated_priority: statedPriority === 'balanced' ? undefined : statedPriority,
+        willing_to_carpool: true,
+      },
+      {
+        onSuccess: (data) => {
+          navigate(`/trip/${data.trip_id}`, {
+            state: { baseline: data, origin, destination, willingToCarpool: true },
+          });
+        },
+      },
+    );
+  }
 
   function handleQuickPopularRoute() {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
     baseline.mutate(
       {
         origin_lon: FIXED_TRIP.originLon,
@@ -50,7 +91,16 @@ export function HomePage() {
           </div>
 
           {/* Plan Your Route Glass Card */}
-          <TripPlannerForm />
+          <TripPlannerForm
+            origin={origin}
+            destination={destination}
+            onChangeOrigin={setOrigin}
+            onChangeDestination={setDestination}
+            statedPriority={statedPriority}
+            onChangeStatedPriority={setStatedPriority}
+            onSubmit={handleFindRoute}
+            isSubmitting={baseline.isPending}
+          />
 
           {/* Capability Chips (Bottom-Left with 50px gap) */}
           <div className="glass-pane w-full max-w-[380px] rounded-[22px] p-3 sm:p-3.5 mt-8 lg:mt-[50px] shadow-2xl backdrop-blur-xl border border-white/15">

@@ -47,7 +47,10 @@ function withAuthShell(children: React.ReactNode) {
 }
 
 export const router = createBrowserRouter([
-  { path: '/', element: withShell(<ProtectedRoute><HomePage /></ProtectedRoute>) },
+  // Public landing page: an unauthenticated visitor sees Home directly, not an immediate
+  // redirect to /login. "Get Started" (Header) and the Home planner form's submit are what
+  // actually route them to /login -- the page itself stays open.
+  { path: '/', element: withShell(<HomePage />) },
   { path: '/login', element: withAuthShell(<LoginPage />) },
   { path: '/signup', element: withAuthShell(<SignUpPage />) },
   { path: '/trip', element: withShell(<ProtectedRoute><TripWorkspacePage /></ProtectedRoute>) },

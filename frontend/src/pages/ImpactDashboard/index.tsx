@@ -28,6 +28,7 @@ export function ImpactDashboardPage() {
           <div className="flex items-center gap-2 sm:gap-3">
             <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-white drop-shadow-sm">
               Climate Impact & Analytics
+            </h1>
           </div>
 
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 border border-white/15 text-[11px] font-bold text-white shadow-xs backdrop-blur-md shrink-0">
