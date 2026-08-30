@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import { Key, Maximize2, Minus, Plus, RefreshCw } from 'lucide-react';
+import { LayerIcon, SatelliteIcon, MapMinimalIcon, TerrainMinimalIcon } from '@/components/ui/MapIcons';
 import type { RouteLayerInput } from './route-layer';
 import type { CooperationResponse } from '@/services/api/types';
 
@@ -19,6 +20,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentMapType, setCurrentMapType] = useState<'roadmap' | 'hybrid' | 'terrain'>('roadmap');
 
   const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -50,10 +52,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
           mapTypeId: google.maps.MapTypeId.ROADMAP,
           disableDefaultUI: true, // We provide modern dark-glass UI controls for zoom
           zoomControl: false,
-          mapTypeControl: true, // User requested native Map/Satellite toggle
-          mapTypeControlOptions: {
-            position: google.maps.ControlPosition.TOP_LEFT,
-          },
+          mapTypeControl: false, // Replaced with custom minimalist glass Layer/Satellite switcher
           streetViewControl: false,
           fullscreenControl: false,
           styles: [
@@ -317,7 +316,14 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
     }
   };
 
-
+  const handleMapTypeChange = (type: 'roadmap' | 'hybrid' | 'terrain') => {
+    setCurrentMapType(type);
+    const map = mapRef.current;
+    if (!map || typeof google === 'undefined') return;
+    if (type === 'roadmap') map.setMapTypeId(google.maps.MapTypeId.ROADMAP);
+    else if (type === 'hybrid') map.setMapTypeId(google.maps.MapTypeId.HYBRID);
+    else if (type === 'terrain') map.setMapTypeId(google.maps.MapTypeId.TERRAIN);
+  };
 
   if (error === 'MISSING_KEY') {
     return (
@@ -347,15 +353,68 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
         </div>
       )}
 
+      {/* Minimalist Layer & Satellite Basemap Switcher */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-1 rounded-2xl bg-black/80 backdrop-blur-xl p-1.5 shadow-2xl border border-white/20 text-white transition-all">
+        {/* Layer Icon Indicator */}
+        <div className="flex items-center justify-center pl-2 pr-1 text-[#8EE074]" title="Map View Layers">
+          <LayerIcon size={16} strokeWidth={1.85} />
+        </div>
 
+        <div className="h-4 w-px bg-white/15 mx-0.5" />
+
+        {/* Default Vector Map */}
+        <button
+          type="button"
+          onClick={() => handleMapTypeChange('roadmap')}
+          title="Vector Streets Map"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            currentMapType === 'roadmap'
+              ? 'bg-white/20 text-white shadow-sm ring-1 ring-white/30'
+              : 'text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <MapMinimalIcon size={14} strokeWidth={1.85} className={currentMapType === 'roadmap' ? 'text-[#8EE074]' : 'text-white/60'} />
+          <span className="hidden sm:inline">Map</span>
+        </button>
+
+        {/* Satellite Hybrid */}
+        <button
+          type="button"
+          onClick={() => handleMapTypeChange('hybrid')}
+          title="Satellite Imagery + Transit Overlays"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            currentMapType === 'hybrid'
+              ? 'bg-[#4D7C3E]/85 text-white shadow-sm ring-1 ring-[#8EE074]/40'
+              : 'text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <SatelliteIcon size={14} strokeWidth={1.85} className={currentMapType === 'hybrid' ? 'text-[#8EE074]' : 'text-white/60'} />
+          <span className="hidden sm:inline">Satellite</span>
+        </button>
+
+        {/* Topography / Terrain */}
+        <button
+          type="button"
+          onClick={() => handleMapTypeChange('terrain')}
+          title="Topographic Terrain"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            currentMapType === 'terrain'
+              ? 'bg-white/20 text-white shadow-sm ring-1 ring-white/30'
+              : 'text-white/70 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <TerrainMinimalIcon size={14} strokeWidth={1.85} className={currentMapType === 'terrain' ? 'text-[#8EE074]' : 'text-white/60'} />
+          <span className="hidden sm:inline">Terrain</span>
+        </button>
+      </div>
 
       {/* Modern Navigation Controls */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-1 rounded-md bg-black/80 backdrop-blur-md p-1 shadow-lg border border-white/20 text-white">
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-1 rounded-2xl bg-black/80 backdrop-blur-xl p-1.5 shadow-2xl border border-white/20 text-white">
         <button
           type="button"
           onClick={handleZoomIn}
           title="Zoom In"
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
         >
           <Plus className="h-4 w-4" />
         </button>
@@ -363,7 +422,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
           type="button"
           onClick={handleZoomOut}
           title="Zoom Out"
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-white/10 transition-colors cursor-pointer"
+          className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
         >
           <Minus className="h-4 w-4" />
         </button>
@@ -372,7 +431,7 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
           type="button"
           onClick={handleRecenter}
           title="Fit Route Bounds"
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
+          className="flex h-7 w-7 items-center justify-center rounded-lg hover:bg-white/10 text-white/70 hover:text-white transition-colors cursor-pointer"
         >
           <Maximize2 className="h-3.5 w-3.5" />
         </button>
