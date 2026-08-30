@@ -14,6 +14,7 @@ export interface UserProfile {
     level: string;
     title: string;
   };
+  avatarUrl?: string;
   preferredModes: PreferredMode[];
   stats: {
     avoidedCo2Kg: number;

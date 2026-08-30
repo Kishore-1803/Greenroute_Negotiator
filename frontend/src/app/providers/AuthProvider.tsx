@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 level: 'SUSTAINABILITY STATUS',
                 title: 'Level 1 Green Starter',
               },
+              avatarUrl: data.user.avatar_url,
               preferredModes: data.user.preferred_modes.map((m: string) => ({ id: m, label: m, icon: m === 'car' ? '🚗' : m === 'two_wheeler' ? '⚡' : '🚲' })),
               stats: {
                 avoidedCo2Kg: Number((data.impact.carbon_saved_g / 1000).toFixed(1)) || 0,

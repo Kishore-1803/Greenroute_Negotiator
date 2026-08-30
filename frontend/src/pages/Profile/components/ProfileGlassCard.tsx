@@ -2,7 +2,9 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Calendar, Award, User, Camera, TreeDeciduous, Leaf, Car, LogOut } from 'lucide-react';
 import type { UserProfile } from '../data/profileData';
+import { getToken } from '@/lib/auth';
 import { logoutUser } from '@/lib/auth';
+import { EditProfileModal } from './EditProfileModal';
 
 interface ProfileGlassCardProps {
   profile: UserProfile;
@@ -10,8 +12,9 @@ interface ProfileGlassCardProps {
 
 export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
   const navigate = useNavigate();
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatarUrl || null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleLogout = () => {
@@ -22,12 +25,39 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
     }, 400);
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const url = URL.createObjectURL(file);
       setAvatarUrl(url);
+      
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result as string;
+        try {
+          await saveProfile({ avatar_base64: base64 });
+        } catch (error) {
+          console.error("Failed to save avatar", error);
+        }
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const saveProfile = async (updates: any) => {
+    const token = getToken();
+    const res = await fetch('/api/v1/users/me', {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}` 
+      },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update profile');
+    // We optionally trigger a reload or context update here. 
+    // The easiest way for a hackathon without lifting state is just refreshing the window
+    window.location.reload();
   };
 
   const greenCount = profile.stats.greenChoices || 0;
@@ -118,6 +148,15 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
                 </span>
               </div>
             </div>
+
+            {/* Edit Profile Button */}
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-2xl bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/15 hover:border-white/25 px-3.5 py-2.5 text-xs font-bold text-white transition-all shadow-md active:scale-95 cursor-pointer backdrop-blur-md"
+            >
+              <span>Edit Profile</span>
+            </button>
 
             {/* Logout Button */}
             <button
@@ -247,6 +286,13 @@ export function ProfileGlassCard({ profile }: ProfileGlassCardProps) {
           </div>
         </div>
       </div>
+
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        profile={profile}
+        onSave={saveProfile}
+      />
     </div>
   );
 }
