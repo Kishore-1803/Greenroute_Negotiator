@@ -11,15 +11,16 @@ class RecordTripMemoryUseCase:
         self,
         trip_id: str,
         user_id: str,
-        distance_km: float,
+        distance_km: float | None,
         recommended_mode: str,
         selected_mode: str,
         preference: UserPreference,
     ) -> None:
-        # 1. Determine Distance Band
-        if distance_km < 3:
+        # 1. Determine Distance Band with safe default
+        dist = distance_km if distance_km is not None else 5.0
+        if dist < 3:
             distance_band = "short (<3km)"
-        elif distance_km < 10:
+        elif dist < 10:
             distance_band = "medium (3-10km)"
         else:
             distance_band = "long (>10km)"

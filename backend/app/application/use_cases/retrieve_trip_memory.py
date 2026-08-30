@@ -6,11 +6,12 @@ class RetrieveTripMemoryUseCase:
         self._embedding_provider = embedding_provider
         self._vector_store = vector_store
 
-    def execute(self, user_id: str, distance_km: float) -> list[SemanticTripMemory]:
-        # 1. Determine Distance Band
-        if distance_km < 3:
+    def execute(self, user_id: str, distance_km: float | None = None) -> list[SemanticTripMemory]:
+        # 1. Determine Distance Band with safe default if routing returned None
+        dist = distance_km if distance_km is not None else 5.0
+        if dist < 3:
             distance_band = "short (<3km)"
-        elif distance_km < 10:
+        elif dist < 10:
             distance_band = "medium (3-10km)"
         else:
             distance_band = "long (>10km)"
@@ -23,3 +24,4 @@ class RetrieveTripMemoryUseCase:
 
         # 4. Search Similar Trips
         return self._vector_store.search_similar_trips(user_id=user_id, query_vector=vector, limit=2)
+

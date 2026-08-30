@@ -77,10 +77,11 @@ async def baseline(
     
     # Optional: fetch similar past trips
     # Distance approx logic could be shared, but for demo we extract max route distance
-    dist_km = 0.0
+    dist_km = 5.0
     if result.trip.baseline_metrics:
         first_mode = list(result.trip.baseline_metrics.values())[0]
-        dist_km = first_mode.distance_km
+        if first_mode.distance_km is not None:
+            dist_km = first_mode.distance_km
     similar_trips = retrieve_memory_use_case.execute(user_id=body.user_id, distance_km=dist_km)
     similar_trips_data = [
         {
