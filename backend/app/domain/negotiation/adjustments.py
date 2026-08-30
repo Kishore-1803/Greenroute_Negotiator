@@ -374,6 +374,8 @@ def resolve_and_apply(
             routing_source=m.routing_source,
             routing_disclosure=m.routing_disclosure,
             route_geometry=m.route_geometry,
+            stops=m.stops,
+            traffic_segments=m.traffic_segments,
         )
 
     outcome = AdjustmentOutcome(

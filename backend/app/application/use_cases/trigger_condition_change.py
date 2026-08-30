@@ -82,6 +82,8 @@ class TriggerConditionChangeUseCase:
                 routing_source=surged_car.routing_source,
                 routing_disclosure=(surged_car.routing_disclosure or "") + " (Includes Co-op Savings)",
                 route_geometry=surged_car.route_geometry,
+                stops=getattr(surged_car, "stops", None),
+                traffic_segments=getattr(surged_car, "traffic_segments", None),
             )
 
         # Reuse the same weight vector the baseline was scored with -- a mid-trip condition

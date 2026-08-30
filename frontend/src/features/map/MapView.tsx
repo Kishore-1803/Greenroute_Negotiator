@@ -151,7 +151,9 @@ export function MapView({ routes, cooperationData, className }: MapViewProps) {
           if (d < minDist2) { minDist2 = d; closestIdx2 = i; }
         }
 
-        renderPath = path.slice(0, closestIdx1 + 1); // Truncate route up to Dot 1
+        // The user explicitly requested NO solid lines for transit routes,
+        // only the dots (stations) and the hovered dotted line.
+        renderPath = []; // Set render path to empty to prevent drawing the solid blue line
       }
 
       // High-contrast white casing for primary route (Google Maps style)
